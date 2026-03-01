@@ -372,8 +372,17 @@ let currentUser = null;
 let coins = 0;
 const FREE_ALLOC = { missile: 1, heart: 1, poop: 0 };
 const COST       = { missile: 1, heart: 1, poop: 2 };
-const usedFree   = { missile: 0, heart: 0, poop: 0 };
 const localHits  = {}; // client-side for map visuals
+
+// Persist free usage in sessionStorage so Stripe redirect doesn't reset it
+const usedFree = {
+  get missile() { return parseInt(sessionStorage.getItem('uf_missile')||'0'); },
+  set missile(v) { sessionStorage.setItem('uf_missile', v); },
+  get heart()   { return parseInt(sessionStorage.getItem('uf_heart')||'0'); },
+  set heart(v)  { sessionStorage.setItem('uf_heart', v); },
+  get poop()    { return parseInt(sessionStorage.getItem('uf_poop')||'0'); },
+  set poop(v)   { sessionStorage.setItem('uf_poop', v); },
+};
 
 // ── Country names ──
 const countryNames = {
@@ -421,6 +430,25 @@ sb.auth.onAuthStateChange(async (event, session) => {
   currentUser = session?.user || null;
   await refreshAuthUI();
   await loadRankingFromDB();
+
+  // If returning from successful payment, coins are already in DB — just display them
+  if (currentUser) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success') {
+      window.history.replaceState({}, '', '/');
+      const addedCoins = parseInt(params.get('coins') || '0', 10);
+      // Poll until DB reflects new coins (webhook may take a moment)
+      let attempts = 0;
+      const poll = async () => {
+        await fetchCoins();
+        attempts++;
+        // Keep polling until coins increased or 10 attempts
+        if (attempts < 10) setTimeout(poll, 800);
+      };
+      setTimeout(poll, 1000);
+      showToast(`🎉 ${addedCoins} coins added!`);
+    }
+  }
 });
 
 async function refreshAuthUI() {
@@ -951,36 +979,12 @@ window.addEventListener('scroll',()=>{
   document.getElementById('scroll-hint').style.opacity=window.scrollY>60?'0':'1';
 },{passive:true});
 
-// ── Handle Stripe redirect back ──
-(async function handlePaymentReturn() {
-  const params = new URLSearchParams(window.location.search);
-  const status = params.get('payment');
-  if (!status) return;
-
-  // Clean URL
-  window.history.replaceState({}, '', '/');
-
-  if (status === 'success') {
-    const addedCoins = parseInt(params.get('coins'), 10);
-    showToast(`🎉 ${addedCoins} coins added to your account!`);
-
-    // Wait for auth session to be ready, then refresh coins with retries
-    let attempts = 0;
-    const tryRefresh = async () => {
-      attempts++;
-      const { data: { session } } = await sb.auth.getSession();
-      if (session) {
-        await fetchCoins();
-      } else if (attempts < 8) {
-        setTimeout(tryRefresh, 600);
-      }
-    };
-    setTimeout(tryRefresh, 500);
-
-  } else if (status === 'cancelled') {
-    showToast('Payment cancelled.');
-  }
-})();
+// ── Realtime ranking updates ──
+sb.channel('hits-changes')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hits' }, () => {
+    loadRankingFromDB();
+  })
+  .subscribe();
 </script>
 </body>
 </html>
