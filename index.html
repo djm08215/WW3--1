@@ -452,6 +452,11 @@ async function fetchCoins() {
   if (data) { coins = data.coins; updateCoinDisplay(); }
 }
 
+// Poll coins every 4 seconds when user is logged in (catches webhook updates)
+setInterval(async () => {
+  if (currentUser) await fetchCoins();
+}, 4000);
+
 function updateCoinDisplay() {
   document.getElementById('coin-count').textContent = currentUser ? coins : '—';
   ['missile','heart'].forEach(type => {
