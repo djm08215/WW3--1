@@ -430,30 +430,6 @@ sb.auth.onAuthStateChange(async (event, session) => {
   currentUser = session?.user || null;
   await refreshAuthUI();
   await loadRankingFromDB();
-
-  // Handle Stripe payment return
-  if (currentUser) {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
-      window.history.replaceState({}, '', '/');
-      const addedCoins = parseInt(params.get('coins') || '0', 10);
-      showToast(`🎉 ${addedCoins} coins added!`);
-      // Webhook may not have fired yet — poll DB until coins go up
-      const prevCoins = coins;
-      let tries = 0;
-      const poll = async () => {
-        tries++;
-        await fetchCoins();
-        if (coins <= prevCoins && tries < 15) {
-          setTimeout(poll, 1000);
-        }
-      };
-      setTimeout(poll, 1500);
-    } else if (params.get('payment') === 'cancelled') {
-      window.history.replaceState({}, '', '/');
-      showToast('Payment cancelled.');
-    }
-  }
 });
 
 async function refreshAuthUI() {
@@ -976,12 +952,27 @@ window.addEventListener('scroll',()=>{
   document.getElementById('scroll-hint').style.opacity=window.scrollY>60?'0':'1';
 },{passive:true});
 
-// ── Realtime ranking updates ──
-sb.channel('hits-changes')
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hits' }, () => {
-    loadRankingFromDB();
-  })
-  .subscribe();
+// ── Handle Stripe redirect ──
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const status = params.get('payment');
+  if (!status) return;
+  window.history.replaceState({}, '', '/');
+
+  if (status === 'success') {
+    const addedCoins = params.get('coins');
+    // Wait for auth + webhook to settle, then reload to show fresh coins
+    sessionStorage.setItem('payment_toast', `🎉 ${addedCoins} coins added!`);
+    setTimeout(() => window.location.reload(), 2500);
+    showToast(`🎉 ${addedCoins} coins added! Refreshing...`);
+  } else if (status === 'cancelled') {
+    showToast('Payment cancelled.');
+  }
+})();
+
+// Show toast after reload if payment just completed
+const _pt = sessionStorage.getItem('payment_toast');
+if (_pt) { sessionStorage.removeItem('payment_toast'); setTimeout(() => showToast(_pt), 1000); }
 </script>
 </body>
 </html>
