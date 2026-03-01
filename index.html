@@ -606,8 +606,32 @@ function closeCoinModal() { document.getElementById('coin-modal').classList.remo
 
 // placeholder until Stripe is live
 async function buyCoins(amount, price) {
-  showToast(`💳 Payment coming soon! (${price})`);
-  closeCoinModal();
+  if (!currentUser) { openAuthModal(); closeCoinModal(); return; }
+
+  const btn = event?.target?.closest('.modal-option');
+  if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
+
+  try {
+    const res = await fetch('/api/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        coins: amount,
+        userId: currentUser.id,
+        userEmail: currentUser.email,
+      }),
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url; // redirect to Stripe
+    } else {
+      showToast('Payment error. Try again.');
+      if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
+    }
+  } catch (err) {
+    showToast('Payment error. Try again.');
+    if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
+  }
 }
 
 // ── Tool selection ──
@@ -926,6 +950,25 @@ function spawnFx(x,y,emoji) {
 window.addEventListener('scroll',()=>{
   document.getElementById('scroll-hint').style.opacity=window.scrollY>60?'0':'1';
 },{passive:true});
+
+// ── Handle Stripe redirect back ──
+(async function handlePaymentReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const status = params.get('payment');
+  if (!status) return;
+
+  // Clean URL
+  window.history.replaceState({}, '', '/');
+
+  if (status === 'success') {
+    const coins = parseInt(params.get('coins'), 10);
+    showToast(`🎉 ${coins} coins added to your account!`);
+    // Refresh coin balance from DB
+    await fetchCoins();
+  } else if (status === 'cancelled') {
+    showToast('Payment cancelled.');
+  }
+})();
 </script>
 </body>
 </html>
