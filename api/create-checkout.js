@@ -33,7 +33,7 @@ export default async function handler(req, res) {
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: `https://www.nukeorlov.com?payment=success&coins=${coins}&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `https://www.nukeorlov.com?payment=success&coins=${coins}`,
       cancel_url:  `https://www.nukeorlov.com?payment=cancelled`,
       customer_email: userEmail || undefined,
       metadata: { userId, coins: String(coins) },
