@@ -518,13 +518,30 @@ async function submitAuth() {
   btn.textContent = authMode === 'login' ? 'Sign in' : 'Create account';
 
   if (result.error) {
-    errEl.textContent = result.error.message;
+    // friendlier error messages
+    const msg = result.error.message;
+    if (msg.includes('already registered') || msg.includes('User already registered')) {
+      errEl.textContent = 'This email is already registered. Try signing in.';
+    } else if (msg.includes('Password should be')) {
+      errEl.textContent = 'Password must be at least 6 characters.';
+    } else if (msg.includes('Invalid login')) {
+      errEl.textContent = 'Incorrect email or password.';
+    } else {
+      errEl.textContent = msg;
+    }
     return;
   }
 
-  if (authMode === 'signup' && !result.data.session) {
-    errEl.style.color = '#2e7d32';
-    errEl.textContent = 'Check your email to confirm your account!';
+  if (authMode === 'signup') {
+    if (!result.data.session) {
+      // Email confirmation required
+      errEl.style.color = '#2e7d32';
+      errEl.textContent = '✓ Check your email to confirm your account!';
+    } else {
+      // Auto-confirmed (email confirmation disabled in Supabase)
+      closeAuthModal();
+      showToast('🎉 Account created! You have 2 free coins.');
+    }
     return;
   }
 
@@ -612,16 +629,32 @@ const W = mapWrap.clientWidth, H = mapWrap.clientHeight;
 svg.attr('viewBox', `0 0 ${W} ${H}`);
 svg.append('rect').attr('class','ocean').attr('width', W).attr('height', H);
 
-const projection = d3.geoNaturalEarth1().scale(W / 6.3).translate([W / 2, H / 2]);
-const pathGen    = d3.geoPath().projection(projection);
-const g          = svg.append('g');
+// Push translate down slightly so South Pole is visible at bottom
+const projection = d3.geoNaturalEarth1()
+  .scale(W / 6.3)
+  .translate([W / 2, H / 2 + H * 0.05]);
+const pathGen = d3.geoPath().projection(projection);
+const g       = svg.append('g');
 
 let currentTransform = d3.zoomIdentity;
-const zoom = d3.zoom().scaleExtent([1, 14]).on('zoom', evt => {
-  g.attr('transform', evt.transform);
-  currentTransform = evt.transform;
-});
+const zoom = d3.zoom()
+  .scaleExtent([1, 14])
+  .filter(evt => {
+    // Ctrl+wheel or pinch = zoom; plain scroll = let page scroll
+    if (evt.type === 'wheel') return evt.ctrlKey || evt.metaKey;
+    return !evt.button; // allow drag
+  })
+  .on('zoom', evt => {
+    g.attr('transform', evt.transform);
+    currentTransform = evt.transform;
+  });
+
 svg.call(zoom);
+
+// Allow ctrl+wheel zoom but let plain wheel pass through to page
+mapWrap.addEventListener('wheel', evt => {
+  if (evt.ctrlKey || evt.metaKey) evt.preventDefault();
+}, { passive: false });
 
 document.getElementById('zoom-in').addEventListener('click',    () => svg.transition().duration(280).call(zoom.scaleBy, 1.7));
 document.getElementById('zoom-out').addEventListener('click',   () => svg.transition().duration(280).call(zoom.scaleBy, 1/1.7));
@@ -640,7 +673,7 @@ fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
   .then(world => {
     const countries = topojson.feature(world, world.objects.countries);
     g.selectAll('.country')
-      .data(countries.features)
+      .data(countries.features.filter(d => +d.id !== 10)) // exclude Antarctica shape
       .join('path')
       .attr('class', 'country')
       .attr('d', pathGen)
