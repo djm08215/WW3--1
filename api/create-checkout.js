@@ -7,7 +7,6 @@ const PACKAGES = {
 };
 
 export default async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -28,7 +27,7 @@ export default async function handler(req, res) {
             name: `🪙 ${pkg.label}`,
             description: 'Coins for World Opinion Map',
           },
-          unit_amount: pkg.price, // cents
+          unit_amount: pkg.price,
         },
         quantity: 1,
       }],
