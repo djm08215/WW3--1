@@ -3,7 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const sb = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY  // service role key (not anon)
+  process.env.SUPABASE_SERVICE_KEY
 );
 
 export const config = { api: { bodyParser: false } };
@@ -42,7 +42,6 @@ export default async function handler(req, res) {
         console.error('Failed to add coins:', error);
         return res.status(500).json({ error: 'Failed to add coins' });
       }
-      console.log(`Added ${coins} coins to user ${userId}`);
     }
   }
 
