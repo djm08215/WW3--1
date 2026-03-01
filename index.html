@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World Opinion Map</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --ink: #1a1a1a;
+    --muted: #888;
+    --border: #e0e0e0;
+    --bg: #ffffff;
+  }
+  html, body {
+    background: var(--bg);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    position: fixed;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255,255,255,0.95);
+    border: 1.5px solid var(--border);
+    border-radius: 100px;
+    padding: 5px 8px;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+    backdrop-filter: blur(8px);
+    white-space: nowrap;
+  }
+  .tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: transparent;
+    border-radius: 100px;
+    padding: 7px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .tool-btn .icon { font-size: 1.05rem; line-height: 1; }
+  .tool-btn.active { background: var(--ink); color: #fff; }
+  .tool-btn:not(.active):hover { background: #f5f5f5; color: var(--ink); }
+  .cost-badge {
+    font-size: 0.58rem;
+    font-family: 'DM Mono', monospace;
+    background: rgba(0,0,0,0.07);
+    border-radius: 20px;
+    padding: 1px 6px;
+    color: var(--muted);
+    line-height: 1.8;
+    transition: all 0.2s;
+  }
+  .cost-badge.free-badge { background: #e8f5e9; color: #2e7d32; }
+  .tool-btn.active .cost-badge { background: rgba(255,255,255,0.2); color: rgba(255,255,255,0.85); }
+  .tool-divider { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; margin: 0 2px; }
+  .coin-display {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--ink);
+    cursor: pointer;
+    border-radius: 100px;
+    transition: background 0.15s;
+    font-weight: 500;
+  }
+  .coin-display:hover { background: #f5f5f5; }
+
+  /* ── Zoom controls ── */
+  .zoom-controls {
+    position: fixed;
+    right: 20px;
+    bottom: 64px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .zoom-btn {
+    width: 36px; height: 36px;
+    border: 1.5px solid var(--border);
+    background: rgba(255,255,255,0.95);
+    border-radius: 8px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+    transition: background 0.15s;
+    color: var(--ink);
+    backdrop-filter: blur(8px);
+    font-family: 'DM Sans', sans-serif;
+  }
+  .zoom-btn:hover { background: #f5f5f5; }
+  .zoom-btn:active { transform: scale(0.94); }
+  .zoom-btn.reset { font-size: 0.75rem; font-family: 'DM Mono', monospace; letter-spacing: -0.02em; }
+
+  /* ── Map ── */
+  #map-wrap {
+    width: 100%; height: 100vh;
+    position: relative; overflow: hidden;
+  }
+  #map-svg { width: 100%; height: 100%; }
+
+  .country {
+    fill: #d8d8d8;
+    stroke: #fff;
+    stroke-width: 0.5;
+    cursor: crosshair;
+    transition: fill 0.18s;
+  }
+  .country:hover { fill: #bfbfbf; }
+  .ocean { fill: #f4f4f4; }
+
+  #fx-canvas {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+
+  /* tooltip */
+  #tooltip {
+    position: fixed;
+    background: var(--ink); color: #fff;
+    font-family: 'DM Mono', monospace; font-size: 0.7rem;
+    padding: 5px 10px; border-radius: 6px;
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.1s; white-space: nowrap; z-index: 200;
+  }
+
+  /* explosion */
+  .fx-label {
+    position: absolute; font-size: 1.5rem;
+    pointer-events: none;
+    animation: fxpop 0.9s cubic-bezier(.22,1,.36,1) forwards;
+    z-index: 50; user-select: none;
+  }
+  @keyframes fxpop {
+    0%   { transform: scale(0.2) translateY(0); opacity: 1; }
+    50%  { transform: scale(1.4) translateY(-14px); opacity: 1; }
+    100% { transform: scale(0.7) translateY(-34px); opacity: 0; }
+  }
+
+  /* scroll hint */
+  .scroll-hint {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'DM Mono', monospace; font-size: 0.62rem;
+    letter-spacing: 0.1em; color: #bbb; text-transform: uppercase;
+    animation: pulseHint 2.5s infinite; z-index: 50; pointer-events: none;
+  }
+  @keyframes pulseHint { 0%,100%{opacity:.3} 50%{opacity:.9} }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 56px; left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    background: var(--ink); color: #fff;
+    font-family: 'DM Mono', monospace; font-size: 0.72rem;
+    padding: 8px 18px; border-radius: 100px;
+    opacity: 0; transition: all 0.25s cubic-bezier(.34,1.56,.64,1);
+    white-space: nowrap; z-index: 300;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* loading */
+  #loading {
+    position: fixed; inset: 0; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999; font-family: 'DM Mono', monospace;
+    font-size: 0.78rem; color: var(--muted); letter-spacing: 0.12em;
+    transition: opacity 0.4s;
+  }
+
+  .divider-line { width: 100%; height: 1px; background: var(--border); }
+
+  /* ── Ranking ── */
+  #ranking {
+    background: var(--bg);
+    padding: 72px 48px 80px;
+    max-width: 860px; margin: 0 auto;
+  }
+  .ranking-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 64px;
+  }
+  .ranking-col-title {
+    font-family: 'DM Mono', monospace; font-size: 0.68rem;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 20px;
+    padding-bottom: 12px; border-bottom: 1px solid var(--border);
+  }
+  .rank-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 0; border-bottom: 1px solid var(--border);
+  }
+  .rank-pos {
+    font-family: 'DM Mono', monospace; font-size: 0.68rem;
+    color: #bbb; min-width: 20px; text-align: right;
+  }
+  .rank-name { flex: 1; font-size: 0.88rem; font-weight: 400; }
+  .rank-bar-bg {
+    width: 72px; height: 2px; background: var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+  .rank-bar-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
+  .rank-count {
+    font-family: 'DM Mono', monospace; font-size: 0.68rem;
+    color: var(--muted); min-width: 28px; text-align: right;
+  }
+
+  /* ── Coin modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.2); z-index: 500;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff; border: 1.5px solid var(--border);
+    border-radius: 20px; padding: 36px 40px; max-width: 380px; width: 90%;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+  }
+  .modal-title {
+    font-family: 'DM Mono', monospace; font-size: 0.68rem;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 16px;
+  }
+  .modal-rules {
+    font-size: 0.84rem; line-height: 1.9; color: #555;
+    margin-bottom: 28px; font-family: 'DM Mono', monospace;
+  }
+  .modal-rules span { color: var(--ink); font-weight: 500; }
+  .modal-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .modal-option {
+    display: flex; align-items: center; justify-content: space-between;
+    border: 1.5px solid var(--border); border-radius: 12px;
+    padding: 13px 16px; cursor: pointer; transition: all 0.15s; font-size: 0.88rem;
+  }
+  .modal-option:hover { border-color: var(--ink); background: #fafafa; }
+  .modal-option-coins { font-family: 'DM Mono', monospace; font-weight: 500; }
+  .modal-option-price { font-family: 'DM Mono', monospace; font-size: 0.78rem; color: var(--muted); }
+  .modal-close {
+    width: 100%; border: none; background: transparent;
+    padding: 10px; font-family: 'DM Mono', monospace;
+    font-size: 0.68rem; color: #bbb; cursor: pointer;
+    letter-spacing: 0.08em; text-transform: uppercase; transition: color 0.15s;
+  }
+  .modal-close:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="loading">LOADING MAP…</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <button class="tool-btn active" data-type="missile" id="btn-missile">
+    <span class="icon">🚀</span> Missile
+    <span class="cost-badge free-badge" id="badge-missile">FREE</span>
+  </button>
+  <div class="tool-divider"></div>
+  <button class="tool-btn" data-type="heart" id="btn-heart">
+    <span class="icon">💖</span> Love
+    <span class="cost-badge free-badge" id="badge-heart">FREE</span>
+  </button>
+  <div class="tool-divider"></div>
+  <button class="tool-btn" data-type="poop" id="btn-poop">
+    <span class="icon">💩</span> Poop
+    <span class="cost-badge" id="badge-poop">2🪙</span>
+  </button>
+  <div class="tool-divider"></div>
+  <div class="coin-display" onclick="openModal()">
+    🪙 <span id="coin-count">0</span>
+  </div>
+</div>
+
+<!-- Map -->
+<div id="map-wrap">
+  <svg id="map-svg"></svg>
+  <canvas id="fx-canvas"></canvas>
+</div>
+
+<!-- Zoom controls -->
+<div class="zoom-controls">
+  <button class="zoom-btn" id="zoom-in">+</button>
+  <button class="zoom-btn reset" id="zoom-reset">FIT</button>
+  <button class="zoom-btn" id="zoom-out">−</button>
+</div>
+
+<div class="scroll-hint" id="scroll-hint">↓ scroll for rankings</div>
+<div class="divider-line"></div>
+
+<!-- Ranking -->
+<div id="ranking">
+  <div class="ranking-grid">
+    <div>
+      <div class="ranking-col-title">Most Hated</div>
+      <div id="hate-list"></div>
+    </div>
+    <div>
+      <div class="ranking-col-title">Most Loved</div>
+      <div id="love-list"></div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+<div id="toast"></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Coin Recharge</div>
+    <div class="modal-rules">
+      🚀 Missile &nbsp;— <span>1 coin</span> · +1 hate<br>
+      💖 Love &nbsp;&nbsp;&nbsp;&nbsp;— <span>1 coin</span> · +1 love<br>
+      💩 Poop &nbsp;&nbsp;&nbsp;— <span>2 coins</span> · +2 hate
+    </div>
+    <div class="modal-options">
+      <div class="modal-option" onclick="buyCoins(10)">
+        <span class="modal-option-coins">🪙 10 coins</span>
+        <span class="modal-option-price">$0.99</span>
+      </div>
+      <div class="modal-option" onclick="buyCoins(50)">
+        <span class="modal-option-coins">🪙 50 coins</span>
+        <span class="modal-option-price">$3.99</span>
+      </div>
+      <div class="modal-option" onclick="buyCoins(100)">
+        <span class="modal-option-coins">🪙 100 coins</span>
+        <span class="modal-option-price">$6.99</span>
+      </div>
+    </div>
+    <button class="modal-close" onclick="closeModal()">close</button>
+  </div>
+</div>
+
+<script>
+// ── Country names ──
+const countryNames = {
+  // A
+  4:'Afghanistan',8:'Albania',12:'Algeria',20:'Andorra',24:'Angola',28:'Antigua and Barbuda',
+  32:'Argentina',51:'Armenia',36:'Australia',40:'Austria',31:'Azerbaijan',
+  // B
+  44:'Bahamas',48:'Bahrain',50:'Bangladesh',52:'Barbados',112:'Belarus',56:'Belgium',
+  84:'Belize',204:'Benin',64:'Bhutan',68:'Bolivia',70:'Bosnia and Herzegovina',
+  72:'Botswana',76:'Brazil',96:'Brunei',100:'Bulgaria',854:'Burkina Faso',108:'Burundi',
+  // C
+  132:'Cape Verde',116:'Cambodia',120:'Cameroon',124:'Canada',140:'Central African Republic',
+  148:'Chad',152:'Chile',156:'China',170:'Colombia',174:'Comoros',178:'Republic of Congo',
+  180:'DR Congo',188:'Costa Rica',384:'Ivory Coast',191:'Croatia',192:'Cuba',196:'Cyprus',
+  203:'Czechia',
+  // D
+  208:'Denmark',262:'Djibouti',212:'Dominica',214:'Dominican Republic',
+  // E
+  218:'Ecuador',818:'Egypt',222:'El Salvador',226:'Equatorial Guinea',232:'Eritrea',
+  233:'Estonia',748:'Eswatini',231:'Ethiopia',
+  // F
+  242:'Fiji',246:'Finland',250:'France',
+  // G
+  266:'Gabon',270:'Gambia',268:'Georgia',276:'Germany',288:'Ghana',300:'Greece',
+  308:'Grenada',320:'Guatemala',324:'Guinea',624:'Guinea-Bissau',328:'Guyana',
+  // H
+  332:'Haiti',340:'Honduras',348:'Hungary',
+  // I
+  352:'Iceland',356:'India',360:'Indonesia',364:'Iran',368:'Iraq',372:'Ireland',
+  376:'Israel',380:'Italy',
+  // J
+  388:'Jamaica',392:'Japan',400:'Jordan',
+  // K
+  398:'Kazakhstan',404:'Kenya',296:'Kiribati',408:'North Korea',410:'South Korea',
+  414:'Kuwait',417:'Kyrgyzstan',
+  // L
+  418:'Laos',428:'Latvia',422:'Lebanon',426:'Lesotho',430:'Liberia',434:'Libya',
+  438:'Liechtenstein',440:'Lithuania',442:'Luxembourg',
+  // M
+  450:'Madagascar',454:'Malawi',458:'Malaysia',462:'Maldives',466:'Mali',470:'Malta',
+  584:'Marshall Islands',478:'Mauritania',480:'Mauritius',484:'Mexico',583:'Micronesia',
+  498:'Moldova',492:'Monaco',496:'Mongolia',499:'Montenegro',504:'Morocco',508:'Mozambique',
+  104:'Myanmar',
+  // N
+  516:'Namibia',520:'Nauru',524:'Nepal',528:'Netherlands',554:'New Zealand',
+  558:'Nicaragua',562:'Niger',566:'Nigeria',807:'North Macedonia',578:'Norway',
+  // O
+  512:'Oman',
+  // P
+  586:'Pakistan',585:'Palau',275:'Palestine',591:'Panama',598:'Papua New Guinea',
+  600:'Paraguay',604:'Peru',608:'Philippines',616:'Poland',620:'Portugal',
+  // Q
+  634:'Qatar',
+  // R
+  642:'Romania',643:'Russia',646:'Rwanda',
+  // S
+  659:'Saint Kitts and Nevis',662:'Saint Lucia',670:'Saint Vincent and the Grenadines',
+  882:'Samoa',674:'San Marino',678:'Sao Tome and Principe',682:'Saudi Arabia',
+  686:'Senegal',688:'Serbia',690:'Seychelles',694:'Sierra Leone',703:'Slovakia',
+  705:'Slovenia',090:'Solomon Islands',706:'Somalia',710:'South Africa',728:'South Sudan',
+  724:'Spain',144:'Sri Lanka',729:'Sudan',740:'Suriname',752:'Sweden',756:'Switzerland',
+  760:'Syria',
+  // T
+  158:'Taiwan',762:'Tajikistan',834:'Tanzania',764:'Thailand',626:'Timor-Leste',
+  768:'Togo',776:'Tonga',780:'Trinidad and Tobago',788:'Tunisia',792:'Turkey',
+  795:'Turkmenistan',798:'Tuvalu',
+  // U
+  800:'Uganda',804:'Ukraine',784:'UAE',826:'United Kingdom',840:'United States',
+  858:'Uruguay',860:'Uzbekistan',
+  // V
+  548:'Vanuatu',862:'Venezuela',704:'Vietnam',
+  // W
+  887:'Yemen',
+  // Z
+  894:'Zambia',716:'Zimbabwe',
+  // Poles (approximate — will match any click in those regions if added)
+  10:'Antarctica',
+};
+
+// ── Coin & free system ──
+const FREE_ALLOC = { missile: 1, heart: 1, poop: 0 };
+const COST       = { missile: 1, heart: 1, poop: 2 };
+const usedFree   = { missile: 0, heart: 0, poop: 0 };
+let coins = 0;
+
+function updateUI() {
+  document.getElementById('coin-count').textContent = coins;
+
+  // Badge labels
+  ['missile','heart'].forEach(type => {
+    const badge = document.getElementById('badge-' + type);
+    const hasFree = usedFree[type] < FREE_ALLOC[type];
+    badge.textContent = hasFree ? 'FREE' : `${COST[type]}🪙`;
+    badge.className = 'cost-badge' + (hasFree ? ' free-badge' : '');
+  });
+}
+updateUI();
+
+function canFire(type) {
+  if (usedFree[type] < FREE_ALLOC[type]) return true;
+  return coins >= COST[type];
+}
+
+function consumeFire(type) {
+  if (usedFree[type] < FREE_ALLOC[type]) {
+    usedFree[type]++;
+    updateUI();
+    return true;
+  }
+  if (coins >= COST[type]) {
+    coins -= COST[type];
+    updateUI();
+    return true;
+  }
+  return false;
+}
+
+function openModal()  { document.getElementById('modal-overlay').classList.add('open'); }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function buyCoins(n)  { coins += n; updateUI(); closeModal(); showToast(`🪙 ${n} coins added`); }
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// ── Tool selection ──
+let selectedType = 'missile';
+document.querySelectorAll('.tool-btn[data-type]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tool-btn[data-type]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedType = btn.dataset.type;
+  });
+});
+
+// ── D3 Map + Zoom ──
+const svg   = d3.select('#map-svg');
+const mapWrap = document.getElementById('map-wrap');
+const W = mapWrap.clientWidth;
+const H = mapWrap.clientHeight;
+
+svg.attr('viewBox', `0 0 ${W} ${H}`);
+
+// Ocean
+svg.append('rect').attr('class','ocean').attr('width', W).attr('height', H);
+
+const projection = d3.geoNaturalEarth1()
+  .scale(W / 6.3)
+  .translate([W / 2, H / 2]);
+
+const pathGen = d3.geoPath().projection(projection);
+const g = svg.append('g');
+
+// Zoom behaviour
+let currentTransform = d3.zoomIdentity;
+const zoom = d3.zoom()
+  .scaleExtent([1, 14])
+  .on('zoom', evt => {
+    g.attr('transform', evt.transform);
+    currentTransform = evt.transform;
+  });
+
+svg.call(zoom);
+
+document.getElementById('zoom-in').addEventListener('click', () =>
+  svg.transition().duration(280).call(zoom.scaleBy, 1.7));
+document.getElementById('zoom-out').addEventListener('click', () =>
+  svg.transition().duration(280).call(zoom.scaleBy, 1/1.7));
+document.getElementById('zoom-reset').addEventListener('click', () =>
+  svg.transition().duration(380).call(zoom.transform, d3.zoomIdentity));
+
+// Tooltip
+const tooltip = document.getElementById('tooltip');
+function showTip(evt, text) {
+  tooltip.textContent = text;
+  tooltip.style.opacity = '1';
+  tooltip.style.left = (evt.clientX + 14) + 'px';
+  tooltip.style.top  = (evt.clientY - 32) + 'px';
+}
+function hideTip() { tooltip.style.opacity = '0'; }
+
+// Hits state
+const hits = {};
+
+// Load world data
+fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+  .then(r => r.json())
+  .then(world => {
+    const countries = topojson.feature(world, world.objects.countries);
+
+    g.selectAll('.country')
+      .data(countries.features)
+      .join('path')
+      .attr('class', 'country')
+      .attr('d', pathGen)
+      .attr('data-id', d => d.id)
+      .on('mousemove', function(evt, d) {
+        const name = countryNames[+d.id] || `#${d.id}`;
+        const h = hits[d.id];
+        let extra = '';
+        if (h) {
+          const parts = [];
+          if (h.missile) parts.push(`🚀${h.missile}`);
+          if (h.heart)   parts.push(`💖${h.heart}`);
+          if (h.poop)    parts.push(`💩${h.poop}`);
+          if (parts.length) extra = '  ' + parts.join(' ');
+        }
+        showTip(evt, name + extra);
+      })
+      .on('mouseleave', hideTip)
+      .on('click', function(evt, d) {
+        if (evt.defaultPrevented) return; // drag
+
+        if (!canFire(selectedType)) {
+          showToast('🪙 Not enough coins');
+          openModal();
+          return;
+        }
+
+        const name = countryNames[+d.id] || `#${d.id}`;
+        const centroid = pathGen.centroid(d);
+        if (!centroid || isNaN(centroid[0])) return;
+
+        // Map SVG coords → screen coords
+        const t  = currentTransform;
+        const sx = t.x + centroid[0] * t.k;
+        const sy = t.y + centroid[1] * t.k;
+
+        consumeFire(selectedType);
+        launchMissile(sx, sy, +d.id, name);
+      });
+
+    // Add pole labels
+    const poleStyle = 'font-family:"DM Mono",monospace; font-size:9px; fill:#999; pointer-events:none; text-anchor:middle;';
+    const spPt = projection([0, -85]);
+    const npPt = projection([0, 87]);
+    if (spPt) g.append('text').attr('x', spPt[0]).attr('y', spPt[1])
+      .attr('style', poleStyle).text('South Pole');
+    if (npPt) g.append('text').attr('x', npPt[0]).attr('y', npPt[1])
+      .attr('style', poleStyle).text('North Pole');
+
+    document.getElementById('loading').style.opacity = '0';
+    setTimeout(() => document.getElementById('loading')?.remove(), 400);
+  })
+  .catch(() => {
+    document.getElementById('loading').textContent = 'Failed to load map.';
+  });
+
+// ── Canvas FX ──
+const canvas = document.getElementById('fx-canvas');
+const ctx = canvas.getContext('2d');
+let activeMissiles = [];
+
+function resizeCanvas() {
+  canvas.width  = mapWrap.clientWidth;
+  canvas.height = mapWrap.clientHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// ── Launch ──
+function launchMissile(tx, ty, countryId, countryName) {
+  const fromLeft = Math.random() > 0.5;
+  const sx = fromLeft ? -20 : canvas.width + 20;
+  const sy = 30 + Math.random() * canvas.height * 0.4;
+  const mx = (sx + tx) / 2;
+  const my = Math.min(sy, ty) - 80 - Math.random() * 60;
+
+  const typeEmoji = { missile:'🚀', heart:'💖', poop:'💩' };
+  const typeColor = { missile:'#2a2a2a', heart:'#ff6b9d', poop:'#7a4a28' };
+
+  activeMissiles.push({
+    sx, sy, tx, ty, mx, my,
+    t: 0,
+    speed: 0.015 + Math.random() * 0.009,
+    emoji: typeEmoji[selectedType],
+    color: typeColor[selectedType],
+    type: selectedType,
+    trail: [],
+    done: false,
+    countryId, countryName,
+  });
+
+  playLaunch();
+}
+
+function bez(t, a, b, c) { return (1-t)**2*a + 2*(1-t)*t*b + t**2*c; }
+
+function animateLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  activeMissiles.forEach(m => {
+    if (m.done) return;
+    m.t = Math.min(1, m.t + m.speed);
+
+    const x = bez(m.t, m.sx, m.mx, m.tx);
+    const y = bez(m.t, m.sy, m.my, m.ty);
+
+    m.trail.push({x, y});
+    if (m.trail.length > 30) m.trail.shift();
+
+    // trail
+    for (let j = 1; j < m.trail.length; j++) {
+      const a   = (j / m.trail.length) * 0.5;
+      const hex = Math.round(a * 255).toString(16).padStart(2,'0');
+      ctx.beginPath();
+      ctx.moveTo(m.trail[j-1].x, m.trail[j-1].y);
+      ctx.lineTo(m.trail[j].x, m.trail[j].y);
+      ctx.strokeStyle = m.color + hex;
+      ctx.lineWidth = (j / m.trail.length) * 3.2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    // emoji head
+    const prev  = m.trail[m.trail.length - 2] || {x: m.sx, y: m.sy};
+    const angle = Math.atan2(y - prev.y, x - prev.x);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle + Math.PI * 0.5);
+    ctx.font = '20px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(m.emoji, 0, 0);
+    ctx.restore();
+
+    if (m.t >= 1) { m.done = true; onHit(m); }
+  });
+
+  activeMissiles = activeMissiles.filter(m => !m.done);
+  requestAnimationFrame(animateLoop);
+}
+animateLoop();
+
+// ── On hit ──
+const DEFAULT_FILL = '#d8d8d8';
+
+function onHit(m) {
+  if (!hits[m.countryId]) hits[m.countryId] = {missile:0, heart:0, poop:0, hateScore:0, loveScore:0};
+
+  hits[m.countryId][m.type]++;
+  if (m.type === 'missile') hits[m.countryId].hateScore += 1;
+  if (m.type === 'poop')    hits[m.countryId].hateScore += 2;
+  if (m.type === 'heart')   hits[m.countryId].loveScore += 1;
+
+  // Flash country
+  const flashFill = m.type === 'heart' ? '#ffb3cc' : m.type === 'poop' ? '#c49a6c' : '#a0a0a0';
+  d3.select(`[data-id="${m.countryId}"]`)
+    .transition().duration(0).attr('fill', flashFill)
+    .transition().duration(800).attr('fill', '#d8d8d8');
+
+  spawnFx(m.tx, m.ty, m.emoji);
+  playHit(m.type);
+
+  const label = { missile:'🚀 fired at', heart:'💖 sent to', poop:'💩 dropped on' };
+  showToast(`${label[m.type]} ${m.countryName}`);
+  updateRanking();
+}
+
+function spawnFx(x, y, emoji) {
+  const el = document.createElement('div');
+  el.className = 'fx-label';
+  el.textContent = emoji;
+  el.style.left = (x - 12) + 'px';
+  el.style.top  = (y - 12) + 'px';
+  mapWrap.appendChild(el);
+  setTimeout(() => el.remove(), 960);
+}
+
+// ── Audio ──
+let audioCtx;
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playLaunch() {
+  ensureAudio();
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = 'sine';
+  o.frequency.setValueAtTime(520, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(160, audioCtx.currentTime + 0.28);
+  g.gain.setValueAtTime(0.07, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.32);
+  o.start(); o.stop(audioCtx.currentTime + 0.32);
+}
+function playHit(type) {
+  ensureAudio();
+  if (type === 'heart') {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(880, audioCtx.currentTime);
+    o.frequency.setValueAtTime(1100, audioCtx.currentTime + 0.08);
+    g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    o.start(); o.stop(audioCtx.currentTime + 0.4);
+    return;
+  }
+  const buf  = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.3, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random()*2-1)*(1-i/data.length)**2;
+  const src = audioCtx.createBufferSource();
+  const f   = audioCtx.createBiquadFilter();
+  const g   = audioCtx.createGain();
+  f.type = 'lowpass'; f.frequency.value = type === 'poop' ? 320 : 880;
+  src.buffer = buf;
+  src.connect(f); f.connect(g); g.connect(audioCtx.destination);
+  g.gain.setValueAtTime(0.18, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+  src.start();
+}
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Ranking ──
+function updateRanking() {
+  const hateScore = {}, loveScore = {};
+  Object.entries(hits).forEach(([id, h]) => {
+    const name = countryNames[+id] || `#${id}`;
+    if (h.hateScore) hateScore[name] = h.hateScore;
+    if (h.loveScore) loveScore[name] = h.loveScore;
+  });
+  renderList('hate-list', hateScore, '#1a1a1a');
+  renderList('love-list', loveScore, '#ff6b9d');
+}
+
+function renderList(elId, scoreObj, barColor) {
+  const el = document.getElementById(elId);
+  const sorted = Object.entries(scoreObj).sort((a,b) => b[1]-a[1]).slice(0, 8);
+  const max = sorted[0]?.[1] || 1;
+
+  if (!sorted.length) {
+    el.innerHTML = '<div style="color:#ccc;font-size:0.76rem;padding:14px 0;font-family:\'DM Mono\',monospace">No data yet</div>';
+    return;
+  }
+  el.innerHTML = sorted.map(([name, count], i) => `
+    <div class="rank-row">
+      <div class="rank-pos">${i+1}</div>
+      <div class="rank-name">${name}</div>
+      <div class="rank-bar-bg">
+        <div class="rank-bar-fill" style="width:${(count/max*100).toFixed(0)}%;background:${barColor}"></div>
+      </div>
+      <div class="rank-count">${count}</div>
+    </div>
+  `).join('');
+}
+
+updateRanking();
+
+// scroll hint
+window.addEventListener('scroll', () => {
+  document.getElementById('scroll-hint').style.opacity = window.scrollY > 60 ? '0' : '1';
+}, { passive: true });
+</script>
+</body>
+</html>
