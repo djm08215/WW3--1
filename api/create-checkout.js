@@ -7,6 +7,7 @@ const PACKAGES = {
 };
 
 export default async function handler(req, res) {
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -27,13 +28,13 @@ export default async function handler(req, res) {
             name: `🪙 ${pkg.label}`,
             description: 'Coins for World Opinion Map',
           },
-          unit_amount: pkg.price,
+          unit_amount: pkg.price, // cents
         },
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: `${process.env.SITE_URL}?payment=success&coins=${coins}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${process.env.SITE_URL}?payment=cancelled`,
+      success_url: `https://www.nukeorlov.com?payment=success&coins=${coins}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `https://www.nukeorlov.com?payment=cancelled`,
       customer_email: userEmail || undefined,
       metadata: { userId, coins: String(coins) },
     });
