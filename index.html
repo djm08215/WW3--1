@@ -431,22 +431,27 @@ sb.auth.onAuthStateChange(async (event, session) => {
   await refreshAuthUI();
   await loadRankingFromDB();
 
-  // If returning from successful payment, coins are already in DB — just display them
+  // Handle Stripe payment return
   if (currentUser) {
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment') === 'success') {
       window.history.replaceState({}, '', '/');
       const addedCoins = parseInt(params.get('coins') || '0', 10);
-      // Poll until DB reflects new coins (webhook may take a moment)
-      let attempts = 0;
-      const poll = async () => {
-        await fetchCoins();
-        attempts++;
-        // Keep polling until coins increased or 10 attempts
-        if (attempts < 10) setTimeout(poll, 800);
-      };
-      setTimeout(poll, 1000);
       showToast(`🎉 ${addedCoins} coins added!`);
+      // Webhook may not have fired yet — poll DB until coins go up
+      const prevCoins = coins;
+      let tries = 0;
+      const poll = async () => {
+        tries++;
+        await fetchCoins();
+        if (coins <= prevCoins && tries < 15) {
+          setTimeout(poll, 1000);
+        }
+      };
+      setTimeout(poll, 1500);
+    } else if (params.get('payment') === 'cancelled') {
+      window.history.replaceState({}, '', '/');
+      showToast('Payment cancelled.');
     }
   }
 });
@@ -858,36 +863,28 @@ async function onHit(m) {
   const label = {missile:'🚀 fired at', heart:'💖 sent to', poop:'💩 dropped on'};
   showToast(`${label[m.type]} ${m.countryName}`);
 
-  // Save to DB if logged in
-  if (currentUser) {
-    await sb.from('hits').insert({
-      user_id: currentUser.id,
-      country_id: m.countryId,
-      country_name: m.countryName,
-      hit_type: m.type,
-      hate_score: hateAdd,
-      love_score: loveAdd,
-    });
-  }
+  // Save to DB always (user_id null if not logged in)
+  await sb.from('hits').insert({
+    user_id: currentUser?.id || null,
+    country_id: m.countryId,
+    country_name: m.countryName,
+    hit_type: m.type,
+    hate_score: hateAdd,
+    love_score: loveAdd,
+  });
 
   await loadRankingFromDB();
 }
 
-// ── Ranking from DB ──
+// ── Ranking from DB only ──
 async function loadRankingFromDB() {
   const { data, error } = await sb.from('country_rankings').select('*');
-  if (error || !data) { updateRankingLocal(); return; }
+  if (error || !data || data.length === 0) { updateRankingLocal(); return; }
 
   const hateScore = {}, loveScore = {};
   data.forEach(row => {
     if (+row.total_hate > 0) hateScore[row.country_name] = +row.total_hate;
     if (+row.total_love > 0) loveScore[row.country_name] = +row.total_love;
-  });
-  // merge local (unregistered) hits
-  Object.entries(localHits).forEach(([id, h]) => {
-    const name = countryNames[+id] || `#${id}`;
-    if (h.hateScore) hateScore[name] = (hateScore[name]||0) + h.hateScore;
-    if (h.loveScore) loveScore[name] = (loveScore[name]||0) + h.loveScore;
   });
   renderList('hate-list', hateScore, '#1a1a1a');
   renderList('love-list', loveScore, '#ff6b9d');
