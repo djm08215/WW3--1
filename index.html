@@ -961,10 +961,22 @@ window.addEventListener('scroll',()=>{
   window.history.replaceState({}, '', '/');
 
   if (status === 'success') {
-    const coins = parseInt(params.get('coins'), 10);
-    showToast(`🎉 ${coins} coins added to your account!`);
-    // Refresh coin balance from DB
-    await fetchCoins();
+    const addedCoins = parseInt(params.get('coins'), 10);
+    showToast(`🎉 ${addedCoins} coins added to your account!`);
+
+    // Wait for auth session to be ready, then refresh coins with retries
+    let attempts = 0;
+    const tryRefresh = async () => {
+      attempts++;
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        await fetchCoins();
+      } else if (attempts < 8) {
+        setTimeout(tryRefresh, 600);
+      }
+    };
+    setTimeout(tryRefresh, 500);
+
   } else if (status === 'cancelled') {
     showToast('Payment cancelled.');
   }
