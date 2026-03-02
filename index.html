@@ -121,6 +121,11 @@
     50%  { transform: scale(1.4) translateY(-14px); opacity: 1; }
     100% { transform: scale(0.7) translateY(-34px); opacity: 0; }
   }
+  @keyframes mushroom {
+    0%   { transform: scale(0.1) translateY(20px); opacity: 1; }
+    40%  { transform: scale(2.2) translateY(-40px); opacity: 1; }
+    100% { transform: scale(1.5) translateY(-80px); opacity: 0; }
+  }
 
   /* scroll hint */
   .scroll-hint {
@@ -300,6 +305,16 @@
     <span class="cost-badge" id="badge-poop">2🪙</span>
   </button>
   <div class="tool-divider"></div>
+  <button class="tool-btn" data-type="nuke" id="btn-nuke">
+    <span class="icon">☢️</span> Nuke
+    <span class="cost-badge" id="badge-nuke">300🪙</span>
+  </button>
+  <div class="tool-divider"></div>
+  <button class="tool-btn" data-type="worldlove" id="btn-worldlove">
+    <span class="icon">🌸</span> World Love
+    <span class="cost-badge" id="badge-worldlove">300🪙</span>
+  </button>
+  <div class="tool-divider"></div>
   <div class="coin-display" onclick="openCoinModal()">
     🪙 <span id="coin-count">—</span>
   </div>
@@ -348,6 +363,7 @@
 
 <div id="tooltip"></div>
 <div id="toast"></div>
+<div id="nuke-flash" style="display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;"></div>
 
 <!-- ── Coin Modal ── -->
 <div class="modal-overlay" id="coin-modal">
@@ -356,7 +372,9 @@
     <div class="modal-rules">
       🚀 Missile — <span>1 coin</span> · +1 hate<br>
       💖 Love &nbsp;&nbsp;&nbsp; — <span>1 coin</span> · +1 love<br>
-      💩 Poop &nbsp;&nbsp; — <span>2 coins</span> · +2 hate
+      💩 Poop &nbsp;&nbsp; — <span>2 coins</span> · +2 hate<br>
+      ☢️ Nuke &nbsp;&nbsp; — <span>300 coins</span> · +500 hate<br>
+      🌸 World Love — <span>300 coins</span> · +500 love
     </div>
     <div id="coin-modal-body">
       <!-- filled by JS depending on auth state -->
@@ -400,18 +418,22 @@ const sb = createClient(
 // ── State ──
 let currentUser = null;
 let coins = 0;
-const FREE_ALLOC = { missile: 1, heart: 1, poop: 0 };
-const COST       = { missile: 1, heart: 1, poop: 2 };
+const FREE_ALLOC = { missile: 1, heart: 1, poop: 0, nuke: 0, worldlove: 0 };
+const COST       = { missile: 1, heart: 1, poop: 2, nuke: 300, worldlove: 300 };
 const localHits  = {}; // client-side for map visuals
 
-// Persist free usage in sessionStorage so Stripe redirect doesn't reset it
+// Persist free usage in localStorage so it survives tab close/reopen
 const usedFree = {
-  get missile() { return parseInt(sessionStorage.getItem('uf_missile')||'0'); },
-  set missile(v) { sessionStorage.setItem('uf_missile', v); },
-  get heart()   { return parseInt(sessionStorage.getItem('uf_heart')||'0'); },
-  set heart(v)  { sessionStorage.setItem('uf_heart', v); },
-  get poop()    { return parseInt(sessionStorage.getItem('uf_poop')||'0'); },
-  set poop(v)   { sessionStorage.setItem('uf_poop', v); },
+  get missile() { return parseInt(localStorage.getItem('uf_missile')||'0'); },
+  set missile(v) { localStorage.setItem('uf_missile', v); },
+  get heart()   { return parseInt(localStorage.getItem('uf_heart')||'0'); },
+  set heart(v)  { localStorage.setItem('uf_heart', v); },
+  get poop()    { return parseInt(localStorage.getItem('uf_poop')||'0'); },
+  set poop(v)   { localStorage.setItem('uf_poop', v); },
+  get nuke()      { return parseInt(localStorage.getItem('uf_nuke')||'0'); },
+  set nuke(v)     { localStorage.setItem('uf_nuke', v); },
+  get worldlove() { return parseInt(localStorage.getItem('uf_worldlove')||'0'); },
+  set worldlove(v){ localStorage.setItem('uf_worldlove', v); },
 };
 
 // ── Country names ──
@@ -489,8 +511,9 @@ setInterval(async () => {
 
 function updateCoinDisplay() {
   document.getElementById('coin-count').textContent = currentUser ? coins : '—';
-  ['missile','heart'].forEach(type => {
+  ['missile','heart','poop','nuke','worldlove'].forEach(type => {
     const badge = document.getElementById('badge-' + type);
+    if (!badge) return;
     const hasFree = usedFree[type] < FREE_ALLOC[type];
     badge.textContent = hasFree ? 'FREE' : `${COST[type]}🪙`;
     badge.className   = 'cost-badge' + (hasFree ? ' free-badge' : '');
@@ -640,6 +663,10 @@ function openCoinModal() {
           <span class="modal-option-coins">🪙 100 coins</span>
           <span class="modal-option-price">$6.99</span>
         </div>
+        <div class="modal-option" onclick="buyCoins(300,'$17.99')">
+          <span class="modal-option-coins">☢️ 300 coins <span style="font-size:0.7rem;color:#e53e3e;margin-left:4px">NUKE PACK</span></span>
+          <span class="modal-option-price">$17.99</span>
+        </div>
       </div>`;
   }
   document.getElementById('coin-modal').classList.add('open');
@@ -666,7 +693,7 @@ async function buyCoins(amount, price) {
     const data = await res.json();
     if (data.url) {
       // Store pending coins so we can show toast when they return
-      sessionStorage.setItem('pending_coins', amount);
+      localStorage.setItem('pending_coins', amount);
       window.location.href = data.url;
     } else {
       showToast('Payment error. Try again.');
@@ -680,9 +707,9 @@ async function buyCoins(amount, price) {
 
 // When returning from Stripe (no URL params), detect via pending_coins in sessionStorage
 window.addEventListener('load', () => {
-  const pending = sessionStorage.getItem('pending_coins');
+  const pending = localStorage.getItem('pending_coins');
   if (!pending) return;
-  sessionStorage.removeItem('pending_coins');
+  localStorage.removeItem('pending_coins');
   const amount = parseInt(pending);
   showToast(`⏳ Processing payment...`);
   // Poll aggressively for 30 seconds until coins go up
@@ -843,8 +870,8 @@ function launchMissile(tx, ty, countryId, countryName) {
   const fromLeft = Math.random() > 0.5;
   const sx = fromLeft ? -20 : canvas.width + 20;
   const sy = 30 + Math.random() * canvas.height * 0.4;
-  const typeEmoji = { missile:'🚀', heart:'💖', poop:'💩' };
-  const typeColor = { missile:'#2a2a2a', heart:'#ff6b9d', poop:'#7a4a28' };
+  const typeEmoji = { missile:'🚀', heart:'💖', poop:'💩', nuke:'☢️', worldlove:'🌸' };
+  const typeColor = { missile:'#2a2a2a', heart:'#ff6b9d', poop:'#7a4a28', nuke:'#ff4400', worldlove:'#ff69b4' };
   activeMissiles.push({
     sx, sy, tx, ty,
     mx: (sx+tx)/2, my: Math.min(sy,ty) - 80 - Math.random()*60,
@@ -891,8 +918,8 @@ animateLoop();
 async function onHit(m) {
   if (!localHits[m.countryId]) localHits[m.countryId] = {missile:0,heart:0,poop:0,hateScore:0,loveScore:0};
   localHits[m.countryId][m.type]++;
-  const hateAdd = m.type==='missile' ? 1 : m.type==='poop' ? 2 : 0;
-  const loveAdd = m.type==='heart' ? 1 : 0;
+  const hateAdd = m.type==='missile' ? 1 : m.type==='poop' ? 2 : m.type==='nuke' ? 500 : 0;
+  const loveAdd = m.type==='heart' ? 1 : m.type==='worldlove' ? 500 : 0;
   localHits[m.countryId].hateScore += hateAdd;
   localHits[m.countryId].loveScore += loveAdd;
 
@@ -904,8 +931,26 @@ async function onHit(m) {
 
   spawnFx(m.tx, m.ty, m.emoji);
   playHit(m.type);
-  const label = {missile:'🚀 fired at', heart:'💖 sent to', poop:'💩 dropped on'};
+  const label = {missile:'🚀 fired at', heart:'💖 sent to', poop:'💩 dropped on', nuke:'☢️ NUKED', worldlove:'🌸 World Love sent to'};
   showToast(`${label[m.type]} ${m.countryName}`);
+
+  // Special effects for nuke / worldlove
+  if (m.type === 'nuke') {
+    nukeFlash('#fff', '#ffeeee');
+    playNuke();
+    spawnMushroom(m.tx, m.ty);
+    // Flash country red
+    d3.select(`[data-id="${m.countryId}"]`)
+      .transition().duration(0).attr('fill','#ff2222')
+      .transition().duration(2000).attr('fill','#d8d8d8');
+  } else if (m.type === 'worldlove') {
+    nukeFlash('rgba(255,180,210,0.6)', 'rgba(255,180,210,0)');
+    playWorldLove();
+    spawnHeartBurst(m.tx, m.ty);
+    d3.select(`[data-id="${m.countryId}"]`)
+      .transition().duration(0).attr('fill','#ff69b4')
+      .transition().duration(2000).attr('fill','#d8d8d8');
+  }
 
   // Save to DB always (user_id null if not logged in)
   await sb.from('hits').insert({
@@ -997,6 +1042,90 @@ function playHit(type) {
   g.gain.setValueAtTime(0.18,audioCtx.currentTime);
   g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.3);
   src.start();
+}
+
+// ── Nuke FX ──
+function playNuke() {
+  ensureAudio();
+  // Deep boom
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate*1.5, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) {
+    data[i] = (Math.random()*2-1) * Math.pow(1 - i/data.length, 1.2);
+  }
+  const src = audioCtx.createBufferSource();
+  const f = audioCtx.createBiquadFilter();
+  const g = audioCtx.createGain();
+  f.type = 'lowpass'; f.frequency.value = 120;
+  src.buffer = buf; src.connect(f); f.connect(g); g.connect(audioCtx.destination);
+  g.gain.setValueAtTime(0.9, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+1.5);
+  src.start();
+  // High freq shockwave
+  const o = audioCtx.createOscillator(), gv = audioCtx.createGain();
+  o.connect(gv); gv.connect(audioCtx.destination); o.type = 'sawtooth';
+  o.frequency.setValueAtTime(200, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime+0.8);
+  gv.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gv.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+0.8);
+  o.start(); o.stop(audioCtx.currentTime+0.8);
+}
+
+function playWorldLove() {
+  ensureAudio();
+  // Ascending chime
+  [523, 659, 784, 1047].forEach((freq, i) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = 'sine'; o.frequency.value = freq;
+    const t = audioCtx.currentTime + i * 0.1;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.12, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+    o.start(t); o.stop(t + 0.6);
+  });
+}
+
+function nukeFlash(color1, color2) {
+  const el = document.getElementById('nuke-flash');
+  el.style.display = 'block';
+  el.style.background = color1;
+  el.style.opacity = '1';
+  el.style.transition = 'none';
+  setTimeout(() => {
+    el.style.transition = 'opacity 1.2s ease';
+    el.style.background = color2;
+    el.style.opacity = '0';
+    setTimeout(() => { el.style.display = 'none'; }, 1300);
+  }, 80);
+}
+
+function spawnMushroom(tx, ty) {
+  const el = document.createElement('div');
+  el.style.cssText = `position:absolute;left:${tx-30}px;top:${ty-30}px;font-size:3.5rem;
+    animation:mushroom 2s cubic-bezier(.22,1,.36,1) forwards;z-index:500;pointer-events:none;`;
+  el.textContent = '🍄';
+  mapWrap.appendChild(el);
+  setTimeout(() => el.remove(), 2100);
+}
+
+function spawnHeartBurst(tx, ty) {
+  for (let i = 0; i < 12; i++) {
+    const el = document.createElement('div');
+    const angle = (i / 12) * Math.PI * 2;
+    const dist = 40 + Math.random() * 60;
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist;
+    el.style.cssText = `position:absolute;left:${tx}px;top:${ty}px;font-size:1.6rem;
+      pointer-events:none;z-index:500;transition:all 0.9s cubic-bezier(.22,1,.36,1);`;
+    el.textContent = ['💖','💗','💓','💝'][i%4];
+    mapWrap.appendChild(el);
+    setTimeout(() => {
+      el.style.transform = `translate(${dx}px,${dy}px) scale(0.3)`;
+      el.style.opacity = '0';
+    }, 20);
+    setTimeout(() => el.remove(), 1000);
+  }
 }
 
 // ── Toast ──
