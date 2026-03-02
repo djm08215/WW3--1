@@ -618,15 +618,13 @@ function openCoinModal() {
           <span class="modal-option-coins">🪙 100 coins</span>
           <span class="modal-option-price">$6.99</span>
         </div>
-      </div>
-      <div class="modal-option-note">💳 Stripe payment coming soon</div>`;
+      </div>`;
   }
   document.getElementById('coin-modal').classList.add('open');
   closeUserMenu();
 }
 function closeCoinModal() { document.getElementById('coin-modal').classList.remove('open'); }
 
-// placeholder until Stripe is live
 async function buyCoins(amount, price) {
   if (!currentUser) { openAuthModal(); closeCoinModal(); return; }
 
@@ -645,7 +643,9 @@ async function buyCoins(amount, price) {
     });
     const data = await res.json();
     if (data.url) {
-      window.location.href = data.url; // redirect to Stripe
+      // Store pending coins so we can show toast when they return
+      sessionStorage.setItem('pending_coins', amount);
+      window.location.href = data.url;
     } else {
       showToast('Payment error. Try again.');
       if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
@@ -655,6 +655,28 @@ async function buyCoins(amount, price) {
     if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
   }
 }
+
+// When returning from Stripe (no URL params), detect via pending_coins in sessionStorage
+window.addEventListener('load', () => {
+  const pending = sessionStorage.getItem('pending_coins');
+  if (!pending) return;
+  sessionStorage.removeItem('pending_coins');
+  const amount = parseInt(pending);
+  showToast(`⏳ Processing payment...`);
+  // Poll aggressively for 30 seconds until coins go up
+  const prevCoins = coins;
+  let tries = 0;
+  const poll = async () => {
+    tries++;
+    await fetchCoins();
+    if (coins > prevCoins) {
+      showToast(`🎉 ${amount} coins added!`);
+    } else if (tries < 30) {
+      setTimeout(poll, 1000);
+    }
+  };
+  setTimeout(poll, 1500);
+});
 
 // ── Tool selection ──
 let selectedType = 'missile';
@@ -964,28 +986,6 @@ function spawnFx(x,y,emoji) {
 window.addEventListener('scroll',()=>{
   document.getElementById('scroll-hint').style.opacity=window.scrollY>60?'0':'1';
 },{passive:true});
-
-// ── Handle Stripe redirect ──
-(function() {
-  const params = new URLSearchParams(window.location.search);
-  const status = params.get('payment');
-  if (!status) return;
-  window.history.replaceState({}, '', '/');
-
-  if (status === 'success') {
-    const addedCoins = params.get('coins');
-    // Wait for auth + webhook to settle, then reload to show fresh coins
-    sessionStorage.setItem('payment_toast', `🎉 ${addedCoins} coins added!`);
-    setTimeout(() => window.location.reload(), 2500);
-    showToast(`🎉 ${addedCoins} coins added! Refreshing...`);
-  } else if (status === 'cancelled') {
-    showToast('Payment cancelled.');
-  }
-})();
-
-// Show toast after reload if payment just completed
-const _pt = sessionStorage.getItem('payment_toast');
-if (_pt) { sessionStorage.removeItem('payment_toast'); setTimeout(() => showToast(_pt), 1000); }
 </script>
 </body>
 </html>
