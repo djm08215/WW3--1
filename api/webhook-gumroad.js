@@ -1,4 +1,14 @@
 const { createClient } = require('@supabase/supabase-js');
+const querystring = require('querystring');
+
+async function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString()));
+    req.on('error', reject);
+  });
+}
 
 const sb = createClient(
   process.env.SUPABASE_URL,
@@ -13,30 +23,46 @@ const PRODUCT_COINS = {
   'bgyecx':    300,
 };
 
+export const config = { api: { bodyParser: false } };
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   try {
     // Gumroad sends form-encoded data
-    const body = req.body;
-    console.log('Gumroad webhook:', JSON.stringify(body));
-
+    const raw = await getRawBody(req);
+    console.log('Gumroad raw ping:', raw);
+    const body = querystring.parse(raw);
     // Only process successful sales
     if (body.resource_name !== 'sale') {
       return res.status(200).json({ received: true });
     }
 
-    const permalink  = body.permalink;
-    const customData = body.custom_fields || {};
-    
-    // userId passed as custom field from frontend
-    const userId = customData.user_id || body.custom_fields_values?.user_id;
-    const coins  = PRODUCT_COINS[permalink];
+    const permalink = body.permalink;
+    const email     = body.email;
+    const coins     = PRODUCT_COINS[permalink];
 
-    if (!userId || !coins) {
-      console.error('Missing userId or unknown product:', { userId, permalink });
-      return res.status(200).json({ received: true }); // 200 so Gumroad doesn't retry
+    console.log('Sale data:', { permalink, email, coins });
+
+    if (!email || !coins) {
+      console.error('Missing email or unknown product:', { email, permalink });
+      return res.status(200).json({ received: true });
     }
+
+    // Look up userId by email in Supabase auth
+    const { data: users, error: userError } = await sb.auth.admin.listUsers();
+    if (userError) {
+      console.error('Failed to list users:', userError);
+      return res.status(500).json({ error: 'Failed to find user' });
+    }
+
+    const user = users.users.find(u => u.email === email);
+    if (!user) {
+      console.error('User not found for email:', email);
+      return res.status(200).json({ received: true });
+    }
+
+    const userId = user.id;
 
     const { error } = await sb.rpc('add_coins', { user_id_input: userId, amount: coins });
     if (error) {
