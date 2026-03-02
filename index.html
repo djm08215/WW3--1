@@ -255,6 +255,28 @@
   .user-menu-item:hover { background: #f5f5f5; color: var(--ink); }
   .user-menu-email { padding: 9px 14px; font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #bbb; border-bottom: 1px solid var(--border); margin-bottom: 4px; word-break: break-all; }
   .auth-btn-wrap { position: relative; }
+  /* ── Mobile ── */
+  @media (max-width: 600px) {
+    .toolbar { top: 14px; padding: 4px 6px; gap: 2px; max-width: calc(100vw - 24px); }
+    .tool-btn { padding: 7px 9px; font-size: 0.72rem; gap: 3px; }
+    .tool-btn .icon { font-size: 1rem; }
+    .cost-badge { display: none; }
+    .tool-divider { margin: 0 1px; }
+    .coin-display { padding: 7px 9px; font-size: 0.72rem; }
+    .auth-btn { padding: 7px 9px; font-size: 0.68rem; }
+    .user-menu { right: 0; top: 52px; min-width: 140px; }
+    .zoom-controls { bottom: 80px; right: 14px; }
+    .ranking-grid { grid-template-columns: 1fr; gap: 40px; }
+    #ranking { padding: 48px 20px 60px; }
+    #toast { width: 88%; text-align: center; white-space: normal; font-size: 0.68rem; }
+    .scroll-hint { bottom: 16px; font-size: 0.58rem; }
+    .modal { padding: 28px 22px; border-radius: 16px; }
+  }
+  @media (hover: none) {
+    .tool-btn:not(.active):hover { background: transparent; color: var(--muted); }
+    .country:hover { fill: #d8d8d8; }
+    .modal-option:hover { border-color: var(--border); background: transparent; }
+  }
 </style>
 </head>
 <body>
@@ -704,13 +726,15 @@ const pathGen = d3.geoPath().projection(projection);
 const g       = svg.append('g');
 
 let currentTransform = d3.zoomIdentity;
+const isMobile = window.matchMedia('(hover: none)').matches;
+
 const zoom = d3.zoom()
   .scaleExtent([1, 14])
-  .wheelDelta(evt => -evt.deltaY * 0.001) // much gentler scroll zoom
+  .wheelDelta(evt => -evt.deltaY * 0.001)
   .filter(evt => {
-    // Ctrl+wheel or pinch = zoom; plain scroll = let page scroll
     if (evt.type === 'wheel') return evt.ctrlKey || evt.metaKey;
-    return !evt.button; // allow drag
+    if (evt.type === 'touchstart' || evt.type === 'touchmove') return evt.touches.length >= 2; // pinch only
+    return !evt.button;
   })
   .on('zoom', evt => {
     g.attr('transform', evt.transform);
@@ -719,10 +743,18 @@ const zoom = d3.zoom()
 
 svg.call(zoom);
 
-// Allow ctrl+wheel zoom but let plain wheel pass through to page
+// Desktop: ctrl+wheel zooms; mobile: let single-touch scroll page
 mapWrap.addEventListener('wheel', evt => {
   if (evt.ctrlKey || evt.metaKey) evt.preventDefault();
 }, { passive: false });
+
+// Mobile: prevent map from eating single-touch scroll
+if (isMobile) {
+  let touchStartY = 0;
+  mapWrap.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+}
 
 document.getElementById('zoom-in').addEventListener('click',    () => svg.transition().duration(280).call(zoom.scaleBy, 1.7));
 document.getElementById('zoom-out').addEventListener('click',   () => svg.transition().duration(280).call(zoom.scaleBy, 1/1.7));
@@ -747,6 +779,7 @@ fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
       .attr('d', pathGen)
       .attr('data-id', d => d.id)
       .on('mousemove', function(evt, d) {
+        if (isMobile) return; // no tooltip on touch devices
         const name = countryNames[+d.id] || `#${d.id}`;
         const h = localHits[d.id];
         let extra = '';
