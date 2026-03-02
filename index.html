@@ -674,35 +674,26 @@ function openCoinModal() {
 }
 function closeCoinModal() { document.getElementById('coin-modal').classList.remove('open'); }
 
+// Gumroad product links
+const GUMROAD_LINKS = {
+  10:  'https://djmelo1.gumroad.com/l/nukeorlov',
+  50:  'https://djmelo1.gumroad.com/l/xnuvqm',
+  100: 'https://djmelo1.gumroad.com/l/mlptxb',
+  300: 'https://djmelo1.gumroad.com/l/bgyecx',
+};
+
 async function buyCoins(amount, price) {
   if (!currentUser) { openAuthModal(); closeCoinModal(); return; }
 
-  const btn = event?.target?.closest('.modal-option');
-  if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
+  const link = GUMROAD_LINKS[amount];
+  if (!link) { showToast('Payment error. Try again.'); return; }
 
-  try {
-    const res = await fetch('/api/create-checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        coins: amount,
-        userId: currentUser.id,
-        userEmail: currentUser.email,
-      }),
-    });
-    const data = await res.json();
-    if (data.url) {
-      // Store pending coins so we can show toast when they return
-      localStorage.setItem('pending_coins', amount);
-      window.location.href = data.url;
-    } else {
-      showToast('Payment error. Try again.');
-      if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
-    }
-  } catch (err) {
-    showToast('Payment error. Try again.');
-    if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
-  }
+  // Store pending coins so we can poll after return
+  localStorage.setItem('pending_coins', amount);
+
+  // Append user_id as custom field so webhook can identify user
+  const url = `${link}?custom[user_id]=${encodeURIComponent(currentUser.id)}&wanted=true`;
+  window.location.href = url;
 }
 
 // When returning from Stripe (no URL params), detect via pending_coins in sessionStorage
