@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>World Opinion Map</title>
+<title>World Reaction Map</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -291,7 +291,7 @@
 <!-- Toolbar -->
 <div class="toolbar">
   <button class="tool-btn active" data-type="missile" id="btn-missile">
-    <span class="icon">🚀</span> Missile
+    <span class="icon">🚀</span> Rocket
     <span class="cost-badge free-badge" id="badge-missile">FREE</span>
   </button>
   <div class="tool-divider"></div>
@@ -301,12 +301,12 @@
   </button>
   <div class="tool-divider"></div>
   <button class="tool-btn" data-type="poop" id="btn-poop">
-    <span class="icon">💩</span> Poop
+    <span class="icon">💩</span> Gross
     <span class="cost-badge" id="badge-poop">2🪙</span>
   </button>
   <div class="tool-divider"></div>
   <button class="tool-btn" data-type="nuke" id="btn-nuke">
-    <span class="icon">☢️</span> Nuke
+    <span class="icon">✨</span> Supernova
     <span class="cost-badge" id="badge-nuke">300🪙</span>
   </button>
   <div class="tool-divider"></div>
@@ -351,7 +351,7 @@
 <div id="ranking">
   <div class="ranking-grid">
     <div>
-      <div class="ranking-col-title">Most Hated</div>
+      <div class="ranking-col-title">Most Disapproved</div>
       <div id="hate-list"></div>
     </div>
     <div>
@@ -370,10 +370,10 @@
   <div class="modal">
     <div class="modal-title">Coin Recharge</div>
     <div class="modal-rules">
-      🚀 Missile — <span>1 coin</span> · +1 hate<br>
-      💖 Love &nbsp;&nbsp;&nbsp; — <span>1 coin</span> · +1 love<br>
-      💩 Poop &nbsp;&nbsp; — <span>2 coins</span> · +2 hate<br>
-      ☢️ Nuke &nbsp;&nbsp; — <span>300 coins</span> · +500 hate<br>
+      🚀 Rocket — <span>1 coin</span> · +1 disapprove<br>
+      💖 Love &nbsp;&nbsp;&nbsp;&nbsp; — <span>1 coin</span> · +1 love<br>
+      💩 Gross &nbsp;&nbsp; — <span>2 coins</span> · +2 disapprove<br>
+      ✨ Supernova — <span>300 coins</span> · +500 disapprove<br>
       🌸 World Love — <span>300 coins</span> · +500 love
     </div>
     <div id="coin-modal-body">
@@ -664,7 +664,7 @@ function openCoinModal() {
           <span class="modal-option-price">$6.99</span>
         </div>
         <div class="modal-option" onclick="buyCoins(300,'$17.99')">
-          <span class="modal-option-coins">☢️ 300 coins <span style="font-size:0.7rem;color:#e53e3e;margin-left:4px">NUKE PACK</span></span>
+          <span class="modal-option-coins">✨ 300 coins <span style="font-size:0.7rem;color:#7c3aed;margin-left:4px">SUPERNOVA PACK</span></span>
           <span class="modal-option-price">$17.99</span>
         </div>
       </div>`;
@@ -870,7 +870,7 @@ function launchMissile(tx, ty, countryId, countryName) {
   const fromLeft = Math.random() > 0.5;
   const sx = fromLeft ? -20 : canvas.width + 20;
   const sy = 30 + Math.random() * canvas.height * 0.4;
-  const typeEmoji = { missile:'🚀', heart:'💖', poop:'💩', nuke:'☢️', worldlove:'🌸' };
+  const typeEmoji = { missile:'🚀', heart:'💖', poop:'💩', nuke:'✨', worldlove:'🌸' };
   const typeColor = { missile:'#2a2a2a', heart:'#ff6b9d', poop:'#7a4a28', nuke:'#ff4400', worldlove:'#ff69b4' };
   activeMissiles.push({
     sx, sy, tx, ty,
@@ -931,7 +931,7 @@ async function onHit(m) {
 
   spawnFx(m.tx, m.ty, m.emoji);
   playHit(m.type);
-  const label = {missile:'🚀 fired at', heart:'💖 sent to', poop:'💩 dropped on', nuke:'☢️ NUKED', worldlove:'🌸 World Love sent to'};
+  const label = {missile:'🚀 Rocket sent to', heart:'💖 sent to', poop:'💩 Grossed out', nuke:'✨ Supernova hit', worldlove:'🌸 World Love sent to'};
   showToast(`${label[m.type]} ${m.countryName}`);
 
   // Special effects for nuke / worldlove
