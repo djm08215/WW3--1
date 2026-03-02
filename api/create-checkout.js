@@ -1,9 +1,10 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const PACKAGES = {
-  10:  { price: 99,  label: '10 Coins' },
-  50:  { price: 399, label: '50 Coins' },
-  100: { price: 699, label: '100 Coins' },
+  10:  { price: 99,   label: '10 Coins' },
+  50:  { price: 399,  label: '50 Coins' },
+  100: { price: 699,  label: '100 Coins' },
+  300: { price: 1799, label: '300 Coins — NUKE PACK' },
 };
 
 export default async function handler(req, res) {
