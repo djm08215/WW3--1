@@ -410,7 +410,7 @@ const sb = createClient(
       storageKey: 'wom-auth',
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: false,
     }
   }
 );
@@ -706,25 +706,31 @@ async function buyCoins(amount, price) {
 }
 
 // When returning from Stripe (no URL params), detect via pending_coins in sessionStorage
-window.addEventListener('load', () => {
-  const pending = localStorage.getItem('pending_coins');
-  if (!pending) return;
-  localStorage.removeItem('pending_coins');
-  const amount = parseInt(pending);
-  showToast(`⏳ Processing payment...`);
-  // Poll aggressively for 30 seconds until coins go up
-  const prevCoins = coins;
-  let tries = 0;
-  const poll = async () => {
-    tries++;
-    await fetchCoins();
-    if (coins > prevCoins) {
-      showToast(`🎉 ${amount} coins added!`);
-    } else if (tries < 30) {
-      setTimeout(poll, 1000);
-    }
-  };
-  setTimeout(poll, 1500);
+window.addEventListener('load', async () => {
+const pending = localStorage.getItem('pending_coins');
+if (!pending) return;
+
+const { data: { session } } = await sb.auth.getSession();
+if (!session?.user) return;
+
+localStorage.removeItem('pending_coins');
+const amount = parseInt(pending, 10);
+showToast('Processing payment...');
+
+const prevCoins = coins;
+let tries = 0;
+const poll = async () => {
+tries++;
+await fetchCoins();
+if (coins > prevCoins) {
+showToast(`${amount} coins added!`);
+return;
+}
+if (tries < 30) {
+setTimeout(poll, 1000);
+}
+};
+setTimeout(poll, 1500);
 });
 
 // ── Tool selection ──
