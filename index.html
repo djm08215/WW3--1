@@ -413,11 +413,10 @@ const sb = createClient(
 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndueHRwaGNlb2lkdWJmbnZ5cXplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzOTA0NjYsImV4cCI6MjA4Nzk2NjQ2Nn0.8-KGvta2tTumPt4f7UkK5R9KJLf24ZfcWAORlgH4PdA',
 {
 auth: {
-storageKey: AUTH_KEY,
+storageKey: `wom-auth-v4-${location.hostname}`,
 autoRefreshToken: false,
 persistSession: true,
-detectSessionInUrl: false,
-multiTab: false
+detectSessionInUrl: false
 }
 }
 );
@@ -726,68 +725,58 @@ async function buyCoins(amount, price) {
 // When returning from Stripe (no URL params), detect via pending_coins in sessionStorage
 window.addEventListener('load', async () => {
 try {
-// 1) 도메인 통일(중요)
+// 1) 도메인 통일 먼저
 if (location.hostname === 'nukeorlov.com') {
 location.replace('https://www.nukeorlov.com' + location.pathname + location.search + location.hash);
 return;
 }
 
-// 2) 세션 먼저 확인
-const { data: { session } } = await sb.auth.getSession();
+// 2) pending 확인
+const pending = localStorage.getItem('pending_coins');
+if (!pending) {
+await fetchCoins(); // 일반 방문 시 코인만 동기화
+return;
+}
+
+// 3) session timeout 가드 (한 번만)
+const sessionPromise = sb.auth.getSession();
+const timeout = new Promise((_, reject) =>
+setTimeout(() => reject(new Error('session-timeout')), 4000)
+);
+
+const result = await Promise.race([sessionPromise, timeout]).catch(() => ({ data: { session: null } }));
+const session = result?.data?.session ?? null;
+
 if (!session?.user) {
-// 로그인 안 된 상태면 결제 후처리 중단 + 찌꺼기 제거
+// 로그인 안 돼 있으면 pending 제거하고 중단
 localStorage.removeItem('pending_coins');
 return;
 }
 
-// 3) 결제 복귀 플래그 확인
-const pendingRaw = localStorage.getItem('pending_coins');
-if (!pendingRaw) {
-// 그냥 일반 방문이면 코인만 최신화
-await fetchCoins();
-return;
-}
-
-// 4) 안전 파싱
-const amount = Number.parseInt(pendingRaw, 10);
+// 4) 결제 후 코인 폴링
+const amount = parseInt(pending, 10);
 localStorage.removeItem('pending_coins');
-
-// 파싱 실패해도 세션은 유지하고 종료
-if (!Number.isFinite(amount) || amount <= 0) {
-await fetchCoins();
-return;
-}
-
 showToast('Processing payment...');
+
 const startCoins = Number(coins || 0);
+let tries = 0;
 
-// 5) 최대 45초 폴링 (웹훅 지연 대비)
-const startedAt = Date.now();
-const timeoutMs = 45_000;
-const intervalMs = 1200;
-
-const tick = async () => {
+const poll = async () => {
+tries++;
 await fetchCoins();
 
-// 코인 증가 확인되면 성공 처리
 if (Number(coins || 0) > startCoins) {
 showToast(`${amount} coins added!`);
 return;
 }
 
-// 타임아웃
-if (Date.now() - startedAt >= timeoutMs) {
-showToast('Payment received. Coins may appear shortly.');
-return;
-}
-
-setTimeout(tick, intervalMs);
+if (tries < 30) setTimeout(poll, 1200);
+else showToast('Payment received. Coins may appear shortly.');
 };
 
-setTimeout(tick, 1200);
+setTimeout(poll, 1200);
 } catch (err) {
 console.error('payment return handler error:', err);
-// 절대 auth를 깨지 않음
 localStorage.removeItem('pending_coins');
 }
 });
