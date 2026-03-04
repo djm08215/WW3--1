@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -23,7 +23,7 @@
     min-height: 100vh;
   }
 
-  /* ?? Toolbar ?? */
+  /* ── Toolbar ── */
   .toolbar {
     position: fixed;
     top: 22px; left: 50%;
@@ -76,7 +76,7 @@
   }
   .auth-btn:hover { background: #f5f5f5; color: var(--ink); }
 
-  /* ?? Zoom ?? */
+  /* ── Zoom ── */
   .zoom-controls {
     position: fixed; right: 20px; bottom: 64px;
     z-index: 100; display: flex; flex-direction: column; gap: 4px;
@@ -94,7 +94,7 @@
   .zoom-btn:active { transform: scale(0.94); }
   .zoom-btn.reset { font-size: 0.75rem; font-family: 'DM Mono', monospace; }
 
-  /* ?? Map ?? */
+  /* ── Map ── */
   #map-wrap { width: 100%; height: 100vh; position: relative; overflow: hidden; background: #fff; }
   #map-svg { width: 100%; height: 100%; }
   .country { fill: #d8d8d8; stroke: #fff; stroke-width: 0.5; cursor: crosshair; transition: fill 0.18s; }
@@ -159,7 +159,7 @@
 
   .divider-line { width: 100%; height: 1px; background: var(--border); }
 
-  /* ?? Ranking ?? */
+  /* ── Ranking ── */
   #ranking { background: var(--bg); padding: 72px 48px 80px; max-width: 860px; margin: 0 auto; }
   .ranking-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
   .ranking-col-title {
@@ -175,7 +175,7 @@
   .rank-bar-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
   .rank-count { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--muted); min-width: 28px; text-align: right; }
 
-  /* ?? Modal base ?? */
+  /* ── Modal base ── */
   .modal-overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(0,0,0,0.2); z-index: 500;
@@ -260,7 +260,7 @@
   .user-menu-item:hover { background: #f5f5f5; color: var(--ink); }
   .user-menu-email { padding: 9px 14px; font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #bbb; border-bottom: 1px solid var(--border); margin-bottom: 4px; word-break: break-all; }
   .auth-btn-wrap { position: relative; }
-  /* ?? Mobile ?? */
+  /* ── Mobile ── */
   @media (max-width: 600px) {
     .toolbar { top: 14px; padding: 4px 6px; gap: 2px; max-width: calc(100vw - 24px); }
     .tool-btn { padding: 7px 9px; font-size: 0.72rem; gap: 3px; }
@@ -286,37 +286,37 @@
 </head>
 <body>
 
-<div id="loading">LOADING MAP??/div>
+<div id="loading">LOADING MAP…</div>
 
 <!-- Toolbar -->
 <div class="toolbar">
   <button class="tool-btn active" data-type="missile" id="btn-missile">
-    <span class="icon">??</span> Missile
+    <span class="icon">🚀</span> Missile
     <span class="cost-badge free-badge" id="badge-missile">FREE</span>
   </button>
   <div class="tool-divider"></div>
   <button class="tool-btn" data-type="heart" id="btn-heart">
-    <span class="icon">?뮇</span> Love
+    <span class="icon">💖</span> Love
     <span class="cost-badge free-badge" id="badge-heart">FREE</span>
   </button>
   <div class="tool-divider"></div>
   <button class="tool-btn" data-type="poop" id="btn-poop">
-    <span class="icon">?뮝</span> Poop
-    <span class="cost-badge" id="badge-poop">2?첌</span>
+    <span class="icon">💩</span> Poop
+    <span class="cost-badge" id="badge-poop">2🪙</span>
   </button>
   <div class="tool-divider"></div>
   <button class="tool-btn" data-type="nuke" id="btn-nuke">
-    <span class="icon">??툘</span> Nuke
-    <span class="cost-badge" id="badge-nuke">300?첌</span>
+    <span class="icon">☢️</span> Nuke
+    <span class="cost-badge" id="badge-nuke">300🪙</span>
   </button>
   <div class="tool-divider"></div>
   <button class="tool-btn" data-type="worldlove" id="btn-worldlove">
-    <span class="icon">?뙵</span> World Love
-    <span class="cost-badge" id="badge-worldlove">300?첌</span>
+    <span class="icon">🌸</span> World Love
+    <span class="cost-badge" id="badge-worldlove">300🪙</span>
   </button>
   <div class="tool-divider"></div>
   <div class="coin-display" onclick="openCoinModal()">
-    ?첌 <span id="coin-count">??/span>
+    🪙 <span id="coin-count">—</span>
   </div>
   <div class="tool-divider"></div>
   <div class="auth-btn-wrap">
@@ -325,8 +325,8 @@
     </button>
     <div class="user-menu" id="user-menu">
       <div class="user-menu-email" id="user-email"></div>
-      <div class="user-menu-item" onclick="openCoinModal()">?첌 Buy Coins</div>
-      <div class="user-menu-item" onclick="signOut(event)">Sign out</div>
+      <div class="user-menu-item" onclick="openCoinModal()">🪙 Buy Coins</div>
+      <div class="user-menu-item" onclick="signOut()">Sign out</div>
     </div>
   </div>
 </div>
@@ -341,10 +341,10 @@
 <div class="zoom-controls">
   <button class="zoom-btn" id="zoom-in">+</button>
   <button class="zoom-btn reset" id="zoom-reset">FIT</button>
-  <button class="zoom-btn" id="zoom-out">??/button>
+  <button class="zoom-btn" id="zoom-out">−</button>
 </div>
 
-<div class="scroll-hint" id="scroll-hint">??scroll for rankings</div>
+<div class="scroll-hint" id="scroll-hint">↓ scroll for rankings</div>
 <div class="divider-line"></div>
 
 <!-- Ranking -->
@@ -365,16 +365,16 @@
 <div id="toast"></div>
 <div id="nuke-flash" style="display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;"></div>
 
-<!-- ?? Coin Modal ?? -->
+<!-- ── Coin Modal ── -->
 <div class="modal-overlay" id="coin-modal">
   <div class="modal">
     <div class="modal-title">Coin Recharge</div>
     <div class="modal-rules">
-      ?? Missile ??<span>1 coin</span> 쨌 +1 hate<br>
-      ?뮇 Love &nbsp;&nbsp;&nbsp; ??<span>1 coin</span> 쨌 +1 love<br>
-      ?뮝 Poop &nbsp;&nbsp; ??<span>2 coins</span> 쨌 +2 hate<br>
-      ??툘 Nuke &nbsp;&nbsp; ??<span>300 coins</span> 쨌 +500 hate<br>
-      ?뙵 World Love ??<span>300 coins</span> 쨌 +500 love
+      🚀 Missile — <span>1 coin</span> · +1 hate<br>
+      💖 Love &nbsp;&nbsp;&nbsp; — <span>1 coin</span> · +1 love<br>
+      💩 Poop &nbsp;&nbsp; — <span>2 coins</span> · +2 hate<br>
+      ☢️ Nuke &nbsp;&nbsp; — <span>300 coins</span> · +500 hate<br>
+      🌸 World Love — <span>300 coins</span> · +500 love
     </div>
     <div id="coin-modal-body">
       <!-- filled by JS depending on auth state -->
@@ -383,7 +383,7 @@
   </div>
 </div>
 
-<!-- ?? Auth Modal ?? -->
+<!-- ── Auth Modal ── -->
 <div class="modal-overlay" id="auth-modal">
   <div class="modal">
     <div class="modal-title">Account</div>
@@ -400,7 +400,7 @@
 </div>
 
 <script>
-// ?? Supabase init ??
+// ── Supabase init ──
 const { createClient } = supabase;
 const sb = createClient(
   'https://wnxtphceoidubfnvyqze.supabase.co',
@@ -415,7 +415,7 @@ const sb = createClient(
   }
 );
 
-// ?? State ??
+// ── State ──
 let currentUser = null;
 let coins = 0;
 const FREE_ALLOC = { missile: 1, heart: 1, poop: 0, nuke: 0, worldlove: 0 };
@@ -436,7 +436,7 @@ const usedFree = {
   set worldlove(v){ localStorage.setItem('uf_worldlove', v); },
 };
 
-// ?? Country names ??
+// ── Country names ──
 const countryNames = {
   4:'Afghanistan',8:'Albania',12:'Algeria',20:'Andorra',24:'Angola',28:'Antigua and Barbuda',
   32:'Argentina',51:'Armenia',36:'Australia',40:'Austria',31:'Azerbaijan',
@@ -477,7 +477,7 @@ const countryNames = {
   10:'Antarctica',
 };
 
-// ?? Auth state listener ??
+// ── Auth state listener ──
 sb.auth.onAuthStateChange(async (event, session) => {
   currentUser = session?.user || null;
   await refreshAuthUI();
@@ -488,7 +488,7 @@ async function refreshAuthUI() {
   const btn   = document.getElementById('auth-btn');
   const label = document.getElementById('auth-label');
   if (currentUser) {
-    label.textContent = '?뫀';
+    label.textContent = '👤';
     document.getElementById('user-email').textContent = currentUser.email;
     await fetchCoins();
   } else {
@@ -510,18 +510,18 @@ setInterval(async () => {
 }, 4000);
 
 function updateCoinDisplay() {
-  document.getElementById('coin-count').textContent = currentUser ? coins : '??;
+  document.getElementById('coin-count').textContent = currentUser ? coins : '—';
   ['missile','heart','poop','nuke','worldlove'].forEach(type => {
     const badge = document.getElementById('badge-' + type);
     if (!badge) return;
     const hasFree = usedFree[type] < FREE_ALLOC[type];
-    badge.textContent = hasFree ? 'FREE' : `${COST[type]}?첌`;
+    badge.textContent = hasFree ? 'FREE' : `${COST[type]}🪙`;
     badge.className   = 'cost-badge' + (hasFree ? ' free-badge' : '');
   });
 }
 updateCoinDisplay();
 
-// ?? Fire logic ??
+// ── Fire logic ──
 function canFire(type) {
   if (usedFree[type] < FREE_ALLOC[type]) return true;
   if (!currentUser) return false; // must be logged in to use coins
@@ -544,7 +544,7 @@ async function consumeFire(type) {
   return true;
 }
 
-// ?? Auth modal ??
+// ── Auth modal ──
 let authMode = 'login';
 function openAuthModal() {
   document.getElementById('auth-modal').classList.add('open');
@@ -558,7 +558,7 @@ function switchTab(mode) {
   document.getElementById('auth-submit').textContent = mode === 'login' ? 'Sign in' : 'Create account';
   document.getElementById('auth-note').textContent = mode === 'login'
     ? 'Sign in to save your coins across sessions and devices.'
-    : 'New accounts start with 2 free coins. ?럞';
+    : 'New accounts start with 2 free coins. 🎁';
   document.getElementById('auth-error').textContent = '';
 }
 
@@ -602,45 +602,29 @@ async function submitAuth() {
     if (!result.data.session) {
       // Email confirmation required
       errEl.style.color = '#2e7d32';
-      errEl.textContent = '??Check your email to confirm your account!';
+      errEl.textContent = '✓ Check your email to confirm your account!';
     } else {
       // Auto-confirmed (email confirmation disabled in Supabase)
       closeAuthModal();
-      showToast('?럦 Account created! You have 2 free coins.');
+      showToast('🎉 Account created! You have 2 free coins.');
     }
     return;
   }
 
   closeAuthModal();
-  showToast(authMode === 'login' ? '?몝 Welcome back!' : '?럦 Account created!');
+  showToast(authMode === 'login' ? '👋 Welcome back!' : '🎉 Account created!');
 }
 
-// ?? User menu ??
+// ── User menu ──
 function toggleUserMenu() {
   if (!currentUser) { openAuthModal(); return; }
   document.getElementById('user-menu').classList.toggle('open');
 }
 function closeUserMenu() { document.getElementById('user-menu').classList.remove('open'); }
 
-async function signOut(e) {
-  e?.stopPropagation?.();
-
-  try {
-    const { error } = await sb.auth.signOut({ scope: 'global' });
-    if (error) throw error;
-  } catch (err) {
-    console.warn('signOut failed, forcing local cleanup:', err?.message || err);
-    try {
-      localStorage.removeItem('wom-auth');
-      sessionStorage.removeItem('wom-auth');
-    } catch (_) {}
-  }
-
-  currentUser = null;
-  coins = 0;
-  await refreshAuthUI();
+async function signOut() {
+  await sb.auth.signOut();
   closeUserMenu();
-  closeAuthModal();
   showToast('Signed out');
 }
 
@@ -650,13 +634,13 @@ document.addEventListener('click', e => {
   if (e.target === document.getElementById('coin-modal')) closeCoinModal();
 });
 
-// ?? Coin modal ??
+// ── Coin modal ──
 function openCoinModal() {
   const body = document.getElementById('coin-modal-body');
   if (!currentUser) {
     body.innerHTML = `
       <div style="text-align:center;padding:20px 0">
-        <div style="font-size:2rem;margin-bottom:12px">?뵏</div>
+        <div style="font-size:2rem;margin-bottom:12px">🔒</div>
         <div style="font-family:'DM Mono',monospace;font-size:0.78rem;color:var(--muted);line-height:1.6;margin-bottom:20px">
           Sign in to purchase coins<br>and save your balance.
         </div>
@@ -668,19 +652,19 @@ function openCoinModal() {
     body.innerHTML = `
       <div class="modal-options">
         <div class="modal-option" onclick="buyCoins(10,'$0.99')">
-          <span class="modal-option-coins">?첌 10 coins</span>
+          <span class="modal-option-coins">🪙 10 coins</span>
           <span class="modal-option-price">$0.99</span>
         </div>
         <div class="modal-option" onclick="buyCoins(50,'$3.99')">
-          <span class="modal-option-coins">?첌 50 coins</span>
+          <span class="modal-option-coins">🪙 50 coins</span>
           <span class="modal-option-price">$3.99</span>
         </div>
         <div class="modal-option" onclick="buyCoins(100,'$6.99')">
-          <span class="modal-option-coins">?첌 100 coins</span>
+          <span class="modal-option-coins">🪙 100 coins</span>
           <span class="modal-option-price">$6.99</span>
         </div>
         <div class="modal-option" onclick="buyCoins(300,'$17.99')">
-          <span class="modal-option-coins">??툘 300 coins <span style="font-size:0.7rem;color:#e53e3e;margin-left:4px">NUKE PACK</span></span>
+          <span class="modal-option-coins">☢️ 300 coins <span style="font-size:0.7rem;color:#e53e3e;margin-left:4px">NUKE PACK</span></span>
           <span class="modal-option-price">$17.99</span>
         </div>
       </div>`;
@@ -718,7 +702,7 @@ window.addEventListener('load', () => {
   if (!pending) return;
   localStorage.removeItem('pending_coins');
   const amount = parseInt(pending);
-  showToast(`??Processing payment...`);
+  showToast(`⏳ Processing payment...`);
   // Poll aggressively for 30 seconds until coins go up
   const prevCoins = coins;
   let tries = 0;
@@ -726,7 +710,7 @@ window.addEventListener('load', () => {
     tries++;
     await fetchCoins();
     if (coins > prevCoins) {
-      showToast(`?럦 ${amount} coins added!`);
+      showToast(`🎉 ${amount} coins added!`);
     } else if (tries < 30) {
       setTimeout(poll, 1000);
     }
@@ -734,7 +718,7 @@ window.addEventListener('load', () => {
   setTimeout(poll, 1500);
 });
 
-// ?? Tool selection ??
+// ── Tool selection ──
 let selectedType = 'missile';
 document.querySelectorAll('.tool-btn[data-type]').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -744,7 +728,7 @@ document.querySelectorAll('.tool-btn[data-type]').forEach(btn => {
   });
 });
 
-// ?? D3 Map + Zoom ??
+// ── D3 Map + Zoom ──
 const svg     = d3.select('#map-svg');
 const mapWrap = document.getElementById('map-wrap');
 const W = mapWrap.clientWidth, H = mapWrap.clientHeight;
@@ -819,9 +803,9 @@ fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
         let extra = '';
         if (h) {
           const parts = [];
-          if (h.missile) parts.push(`??${h.missile}`);
-          if (h.heart)   parts.push(`?뮇${h.heart}`);
-          if (h.poop)    parts.push(`?뮝${h.poop}`);
+          if (h.missile) parts.push(`🚀${h.missile}`);
+          if (h.heart)   parts.push(`💖${h.heart}`);
+          if (h.poop)    parts.push(`💩${h.poop}`);
           if (parts.length) extra = '  ' + parts.join(' ');
         }
         showTip(evt, name + extra);
@@ -831,10 +815,10 @@ fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
         if (evt.defaultPrevented) return;
         if (!canFire(selectedType)) {
           if (!currentUser) {
-            showToast('Sign in to use coins ?뵏');
+            showToast('Sign in to use coins 🔒');
             openAuthModal();
           } else {
-            showToast('?첌 Not enough coins');
+            showToast('🪙 Not enough coins');
             openCoinModal();
           }
           return;
@@ -864,7 +848,7 @@ fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
   })
   .catch(() => { document.getElementById('loading').textContent = 'Failed to load map.'; });
 
-// ?? Canvas ??
+// ── Canvas ──
 const canvas = document.getElementById('fx-canvas');
 const ctx    = canvas.getContext('2d');
 let activeMissiles = [];
@@ -872,12 +856,12 @@ function resizeCanvas() { canvas.width = mapWrap.clientWidth; canvas.height = ma
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// ?? Launch ??
+// ── Launch ──
 function launchMissile(tx, ty, countryId, countryName) {
   const fromLeft = Math.random() > 0.5;
   const sx = fromLeft ? -20 : canvas.width + 20;
   const sy = 30 + Math.random() * canvas.height * 0.4;
-  const typeEmoji = { missile:'??', heart:'?뮇', poop:'?뮝', nuke:'??툘', worldlove:'?뙵' };
+  const typeEmoji = { missile:'🚀', heart:'💖', poop:'💩', nuke:'☢️', worldlove:'🌸' };
   const typeColor = { missile:'#2a2a2a', heart:'#ff6b9d', poop:'#7a4a28', nuke:'#ff4400', worldlove:'#ff69b4' };
   activeMissiles.push({
     sx, sy, tx, ty,
@@ -921,7 +905,7 @@ function animateLoop() {
 }
 animateLoop();
 
-// ?? On hit ??
+// ── On hit ──
 async function onHit(m) {
   if (!localHits[m.countryId]) localHits[m.countryId] = {missile:0,heart:0,poop:0,hateScore:0,loveScore:0};
   localHits[m.countryId][m.type]++;
@@ -938,7 +922,7 @@ async function onHit(m) {
 
   spawnFx(m.tx, m.ty, m.emoji);
   playHit(m.type);
-  const label = {missile:'?? fired at', heart:'?뮇 sent to', poop:'?뮝 dropped on', nuke:'??툘 NUKED', worldlove:'?뙵 World Love sent to'};
+  const label = {missile:'🚀 fired at', heart:'💖 sent to', poop:'💩 dropped on', nuke:'☢️ NUKED', worldlove:'🌸 World Love sent to'};
   showToast(`${label[m.type]} ${m.countryName}`);
 
   // Special effects for nuke / worldlove
@@ -972,7 +956,7 @@ async function onHit(m) {
   await loadRankingFromDB();
 }
 
-// ?? Ranking from DB only ??
+// ── Ranking from DB only ──
 async function loadRankingFromDB() {
   const { data, error } = await sb.from('country_rankings').select('*');
   if (error || !data || data.length === 0) { updateRankingLocal(); return; }
@@ -1016,7 +1000,7 @@ function renderList(elId, scoreObj, barColor) {
 
 loadRankingFromDB();
 
-// ?? Audio ??
+// ── Audio ──
 let audioCtx;
 function ensureAudio() { if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
 function playLaunch() {
@@ -1051,7 +1035,7 @@ function playHit(type) {
   src.start();
 }
 
-// ?? Nuke FX ??
+// ── Nuke FX ──
 function playNuke() {
   ensureAudio();
   // Deep boom
@@ -1111,7 +1095,7 @@ function spawnMushroom(tx, ty) {
   const el = document.createElement('div');
   el.style.cssText = `position:absolute;left:${tx-30}px;top:${ty-30}px;font-size:3.5rem;
     animation:mushroom 2s cubic-bezier(.22,1,.36,1) forwards;z-index:500;pointer-events:none;`;
-  el.textContent = '?뛾';
+  el.textContent = '🍄';
   mapWrap.appendChild(el);
   setTimeout(() => el.remove(), 2100);
 }
@@ -1125,7 +1109,7 @@ function spawnHeartBurst(tx, ty) {
     const dy = Math.sin(angle) * dist;
     el.style.cssText = `position:absolute;left:${tx}px;top:${ty}px;font-size:1.6rem;
       pointer-events:none;z-index:500;transition:all 0.9s cubic-bezier(.22,1,.36,1);`;
-    el.textContent = ['?뮇','?뮉','?뮄','?뮑'][i%4];
+    el.textContent = ['💖','💗','💓','💝'][i%4];
     mapWrap.appendChild(el);
     setTimeout(() => {
       el.style.transform = `translate(${dx}px,${dy}px) scale(0.3)`;
@@ -1135,7 +1119,7 @@ function spawnHeartBurst(tx, ty) {
   }
 }
 
-// ?? Toast ??
+// ── Toast ──
 let toastTimer;
 function showToast(msg) {
   const t=document.getElementById('toast');
@@ -1158,5 +1142,3 @@ window.addEventListener('scroll',()=>{
 </script>
 </body>
 </html>
-
-
