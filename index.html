@@ -624,7 +624,7 @@ function closeUserMenu() { document.getElementById('user-menu').classList.remove
 
 async function signOut(e) {
   e?.stopPropagation?.();
-  const { error } = await sb.auth.signOut();
+  const { error } = await sb.auth.signOut({ scope: 'global' });
   if (error) {
     console.warn('signOut failed:', error.message);
     showToast('Sign out failed. Try again.');
