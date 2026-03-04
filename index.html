@@ -487,6 +487,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
   currentUser = session?.user || null;
   await refreshAuthUI();
   await loadRankingFromDB();
+ await processPendingCoinsIfAny();
 });
 
 async function refreshAuthUI() {
@@ -504,9 +505,23 @@ async function refreshAuthUI() {
 }
 
 async function fetchCoins() {
-  if (!currentUser) return;
-  const { data } = await sb.from('profiles').select('coins').eq('id', currentUser.id).single();
-  if (data) { coins = data.coins; updateCoinDisplay(); }
+if (!currentUser) return;
+
+const { data, error } = await sb
+.from('profiles')
+.select('coins')
+.eq('id', currentUser.id)
+.maybeSingle();
+
+if (error) {
+console.warn('fetchCoins error:', error.message);
+return;
+}
+
+if (!data) return;
+
+coins = data.coins ?? coins ?? 0;
+updateCoinDisplay();
 }
 
 // Poll coins every 4 seconds when user is logged in (catches webhook updates)
@@ -749,53 +764,13 @@ showToast('Complete payment in the new tab, then return to this tab.');
 // When returning from Stripe (no URL params), detect via pending_coins in sessionStorage
 window.addEventListener('load', async () => {
 try {
-const pending = localStorage.getItem('pending_coins');
-
-// Normal load: just refresh coins if logged in
-if (!pending) {
-if (currentUser) await fetchCoins();
-return;
-}
-
-// If not logged in yet, keep pending for later
-if (!currentUser) return;
-
-const amount = parseInt(pending, 10);
-if (!Number.isFinite(amount) || amount <= 0) {
-localStorage.removeItem('pending_coins');
-return;
-}
-
-showToast('Processing payment...');
-
-const startCoins = Number(coins || 0);
-let tries = 0;
-
-const poll = async () => {
-try {
-tries++;
+if (currentUser) {
 await fetchCoins();
-
-if (Number(coins || 0) > startCoins) {
-showToast(`${amount} coins added!`);
-localStorage.removeItem('pending_coins');
-return;
+await loadRankingFromDB();
 }
-
-if (tries < 25) {
-setTimeout(poll, 1200);
-} else {
-showToast('Payment received. Coins may appear shortly.');
-}
+await processPendingCoinsIfAny();
 } catch (e) {
-console.warn('poll error:', e);
-}
-};
-
-setTimeout(poll, 1200);
-} catch (e) {
-console.warn('payment return handler error:', e);
-localStorage.removeItem('pending_coins');
+console.warn('load handler error:', e);
 }
 });
 
@@ -1080,7 +1055,38 @@ function renderList(elId, scoreObj, barColor) {
 }
 
 loadRankingFromDB();
+async function processPendingCoinsIfAny() {
+const pending = localStorage.getItem('pending_coins');
+if (!pending || !currentUser) return;
 
+const amount = parseInt(pending, 10);
+if (!Number.isFinite(amount) || amount <= 0) {
+localStorage.removeItem('pending_coins');
+return;
+}
+
+showToast('Processing payment...');
+
+const startCoins = Number(coins || 0);
+let tries = 0;
+
+const poll = async () => {
+tries++;
+await fetchCoins();
+await loadRankingFromDB();
+
+if (Number(coins || 0) > startCoins) {
+showToast(`${amount} coins added!`);
+localStorage.removeItem('pending_coins');
+return;
+}
+
+if (tries < 25) setTimeout(poll, 1200);
+else showToast('Payment received. Coins may appear shortly.');
+};
+
+setTimeout(poll, 1200);
+}
 // ── Audio ──
 let audioCtx;
 function ensureAudio() { if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
