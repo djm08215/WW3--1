@@ -326,7 +326,7 @@
     <div class="user-menu" id="user-menu">
       <div class="user-menu-email" id="user-email"></div>
       <div class="user-menu-item" onclick="openCoinModal()">🪙 Buy Coins</div>
-      <div class="user-menu-item" onclick="signOut(event)">Sign out</div>
+      <div class="user-menu-item" onclick="forceLocalLogout()">Sign out</div>
     </div>
   </div>
 </div>
@@ -653,7 +653,19 @@ closeUserMenu();
 
 window.location.replace(location.origin + location.pathname + '?v=' + Date.now());
 }
-
+function forceLocalLogout() {
+for (const k of Object.keys(localStorage)) {
+if (k.includes('wom-auth') || k.includes('supabase')) localStorage.removeItem(k);
+}
+for (const k of Object.keys(sessionStorage)) {
+if (k.includes('wom-auth') || k.includes('supabase')) sessionStorage.removeItem(k);
+}
+currentUser = null;
+coins = 0;
+refreshAuthUI();
+closeUserMenu();
+location.replace(location.origin + location.pathname + '?v=' + Date.now());
+}
 document.addEventListener('click', e => {
   if (!e.target.closest('.auth-btn-wrap')) closeUserMenu();
   if (e.target === document.getElementById('auth-modal')) closeAuthModal();
