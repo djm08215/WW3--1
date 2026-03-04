@@ -326,7 +326,7 @@
     <div class="user-menu" id="user-menu">
       <div class="user-menu-email" id="user-email"></div>
       <div class="user-menu-item" onclick="openCoinModal()">🪙 Buy Coins</div>
-      <div class="user-menu-item" onclick="signOut()">Sign out</div>
+      <div class="user-menu-item" onclick="signOut(event)">Sign out</div>
     </div>
   </div>
 </div>
@@ -622,8 +622,17 @@ function toggleUserMenu() {
 }
 function closeUserMenu() { document.getElementById('user-menu').classList.remove('open'); }
 
-async function signOut() {
-  await sb.auth.signOut();
+async function signOut(e) {
+  e?.stopPropagation?.();
+  const { error } = await sb.auth.signOut();
+  if (error) {
+    console.warn('signOut failed:', error.message);
+    showToast('Sign out failed. Try again.');
+    return;
+  }
+  currentUser = null;
+  coins = 0;
+  await refreshAuthUI();
   closeUserMenu();
   showToast('Signed out');
 }
