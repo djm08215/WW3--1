@@ -725,12 +725,13 @@ const url =
 
 // Open Gumroad in a new tab so current tab state/session stays alive
 const paymentTab = window.open(url, '_blank', 'noopener,noreferrer');
+
 if (!paymentTab) {
 showToast('Popup blocked. Please allow popups and try again.');
 return;
 }
 
-showToast('Complete payment in the new tab, then return here.');
+showToast('Complete payment in the new tab, then return to this tab.');
 }
 
 // When returning from Stripe (no URL params), detect via pending_coins in sessionStorage
@@ -772,7 +773,7 @@ return;
 if (tries < 25) {
 setTimeout(poll, 1200);
 } else {
-showToast('Complete payment in the new tab, then return to this tab.');
+showToast('Payment received. Coins may appear shortly.');
 }
 } catch (e) {
 console.warn('poll error:', e);
