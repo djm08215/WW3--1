@@ -772,7 +772,7 @@ return;
 if (tries < 25) {
 setTimeout(poll, 1200);
 } else {
-showToast('Payment received. Coins may appear shortly.');
+showToast('Complete payment in the new tab, then return to this tab.');
 }
 } catch (e) {
 console.warn('poll error:', e);
