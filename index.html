@@ -401,20 +401,26 @@
 
 <script>
 // ── Supabase init ──
+if (location.hostname === 'nukeorlov.com') {
+location.replace('https://www.nukeorlov.com' + location.pathname + location.search + location.hash);
+}
+
+const AUTH_KEY = `wom-auth-v3-${location.hostname}`;
+
 const { createClient } = supabase;
 const sb = createClient(
-  'https://wnxtphceoidubfnvyqze.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndueHRwaGNlb2lkdWJmbnZ5cXplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzOTA0NjYsImV4cCI6MjA4Nzk2NjQ2Nn0.8-KGvta2tTumPt4f7UkK5R9KJLf24ZfcWAORlgH4PdA',
-  {
-    auth: {
-      storageKey: 'wom-auth-v2',
-      autoRefreshToken: false,
-      persistSession: true,
-      detectSessionInUrl: false,
-    }
-  }
+'https://wnxtphceoidubfnvyqze.supabase.co',
+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndueHRwaGNlb2lkdWJmbnZ5cXplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzOTA0NjYsImV4cCI6MjA4Nzk2NjQ2Nn0.8-KGvta2tTumPt4f7UkK5R9KJLf24ZfcWAORlgH4PdA',
+{
+auth: {
+storageKey: AUTH_KEY,
+autoRefreshToken: false,
+persistSession: true,
+detectSessionInUrl: false,
+multiTab: false
+}
+}
 );
-
 // ── State ──
 let currentUser = null;
 let coins = 0;
