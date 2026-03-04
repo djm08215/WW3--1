@@ -408,7 +408,7 @@ const sb = createClient(
   {
     auth: {
       storageKey: 'wom-auth-v2',
-      autoRefreshToken: true,
+      autoRefreshToken: false,
       persistSession: true,
       detectSessionInUrl: false,
     }
@@ -623,18 +623,30 @@ function toggleUserMenu() {
 function closeUserMenu() { document.getElementById('user-menu').classList.remove('open'); }
 
 async function signOut(e) {
-  e?.stopPropagation?.();
-  const { error } = await sb.auth.signOut({ scope: 'global' });
-  if (error) {
-    console.warn('signOut failed:', error.message);
-    showToast('Sign out failed. Try again.');
-    return;
-  }
-  currentUser = null;
-  coins = 0;
-  await refreshAuthUI();
-  closeUserMenu();
-  showToast('Signed out');
+e?.stopPropagation?.();
+
+const { error } = await sb.auth.signOut({ scope: 'global' });
+if (error) {
+console.warn('signOut failed:', error.message);
+}
+
+for (const k of Object.keys(localStorage)) {
+if (k.includes('supabase') || k.includes('wom-auth')) {
+localStorage.removeItem(k);
+}
+}
+for (const k of Object.keys(sessionStorage)) {
+if (k.includes('supabase') || k.includes('wom-auth')) {
+sessionStorage.removeItem(k);
+}
+}
+
+currentUser = null;
+coins = 0;
+await refreshAuthUI();
+closeUserMenu();
+
+window.location.replace(location.origin + location.pathname + '?v=' + Date.now());
 }
 
 document.addEventListener('click', e => {
