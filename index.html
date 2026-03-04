@@ -772,6 +772,7 @@ await processPendingCoinsIfAny();
 } catch (e) {
 console.warn('load handler error:', e);
 }
+ setTimeout(() => { processPendingCoinsIfAny(); }, 1500);
 });
 
 // ── Tool selection ──
@@ -1057,7 +1058,20 @@ function renderList(elId, scoreObj, barColor) {
 loadRankingFromDB();
 async function processPendingCoinsIfAny() {
 const pending = localStorage.getItem('pending_coins');
-if (!pending || !currentUser) return;
+if (!pending) return;
+
+// currentUser가 없으면 세션에서 한 번 복구 시도
+if (!currentUser) {
+try {
+const { data: { user } } = await sb.auth.getUser();
+if (user) currentUser = user;
+} catch (e) {
+console.warn('getUser in pending handler failed:', e);
+}
+}
+
+// 여전히 없으면 다음 기회에 재시도
+if (!currentUser) return;
 
 const amount = parseInt(pending, 10);
 if (!Number.isFinite(amount) || amount <= 0) {
