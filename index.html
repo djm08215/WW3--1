@@ -709,74 +709,79 @@ const GUMROAD_LINKS = {
 };
 
 async function buyCoins(amount, price) {
-  if (!currentUser) { openAuthModal(); closeCoinModal(); return; }
+if (!currentUser) { openAuthModal(); closeCoinModal(); return; }
 
-  const link = GUMROAD_LINKS[amount];
-  if (!link) { showToast('Payment error. Try again.'); return; }
+const link = GUMROAD_LINKS[amount];
+if (!link) { showToast('Payment error. Try again.'); return; }
 
-  // Store pending coins so we can poll after return
-  localStorage.setItem('pending_coins', amount);
+// Keep pending marker in THIS tab
+localStorage.setItem('pending_coins', String(amount));
 
-  // Append user_id as custom field so webhook can identify user
-  const url = `${link}?custom[user_id]=${encodeURIComponent(currentUser.id)}&wanted=true`;
-  window.location.href = url;
+// Include user_id + force return URL
+const url =
+`${link}?custom[user_id]=${encodeURIComponent(currentUser.id)}` +
+`&wanted=true` +
+`&redirect_url=${encodeURIComponent('https://www.nukeorlov.com')}`;
+
+// Open Gumroad in a new tab so current tab state/session stays alive
+const paymentTab = window.open(url, '_blank', 'noopener,noreferrer');
+if (!paymentTab) {
+showToast('Popup blocked. Please allow popups and try again.');
+return;
+}
+
+showToast('Complete payment in the new tab, then return here.');
 }
 
 // When returning from Stripe (no URL params), detect via pending_coins in sessionStorage
 window.addEventListener('load', async () => {
 try {
-// 1) 도메인 통일 먼저
-if (location.hostname === 'nukeorlov.com') {
-location.replace('https://www.nukeorlov.com' + location.pathname + location.search + location.hash);
-return;
-}
-
-// 2) pending 확인
 const pending = localStorage.getItem('pending_coins');
+
+// Normal load: just refresh coins if logged in
 if (!pending) {
-await fetchCoins(); // 일반 방문 시 코인만 동기화
+if (currentUser) await fetchCoins();
 return;
 }
 
-// 3) session timeout 가드 (한 번만)
-const sessionPromise = sb.auth.getSession();
-const timeout = new Promise((_, reject) =>
-setTimeout(() => reject(new Error('session-timeout')), 4000)
-);
+// If not logged in yet, keep pending for later
+if (!currentUser) return;
 
-const result = await Promise.race([sessionPromise, timeout]).catch(() => ({ data: { session: null } }));
-const session = result?.data?.session ?? null;
-
-if (!session?.user) {
-// 로그인 안 돼 있으면 pending 제거하고 중단
-localStorage.removeItem('pending_coins');
-return;
-}
-
-// 4) 결제 후 코인 폴링
 const amount = parseInt(pending, 10);
+if (!Number.isFinite(amount) || amount <= 0) {
 localStorage.removeItem('pending_coins');
+return;
+}
+
 showToast('Processing payment...');
 
 const startCoins = Number(coins || 0);
 let tries = 0;
 
 const poll = async () => {
+try {
 tries++;
 await fetchCoins();
 
 if (Number(coins || 0) > startCoins) {
 showToast(`${amount} coins added!`);
+localStorage.removeItem('pending_coins');
 return;
 }
 
-if (tries < 30) setTimeout(poll, 1200);
-else showToast('Payment received. Coins may appear shortly.');
+if (tries < 25) {
+setTimeout(poll, 1200);
+} else {
+showToast('Payment received. Coins may appear shortly.');
+}
+} catch (e) {
+console.warn('poll error:', e);
+}
 };
 
 setTimeout(poll, 1200);
-} catch (err) {
-console.error('payment return handler error:', err);
+} catch (e) {
+console.warn('payment return handler error:', e);
 localStorage.removeItem('pending_coins');
 }
 });
