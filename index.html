@@ -326,6 +326,7 @@
     <div class="user-menu" id="user-menu">
       <div class="user-menu-email" id="user-email"></div>
       <div class="user-menu-item" onclick="openCoinModal()">🪙 Buy Coins</div>
+     <div class="user-menu-item" onclick="manualRefreshCoins()">🔄 Refresh Coins</div>
       <div class="user-menu-item" onclick="forceLocalLogout()">Sign out</div>
     </div>
   </div>
@@ -680,6 +681,18 @@ coins = 0;
 refreshAuthUI();
 closeUserMenu();
 location.replace(location.origin + location.pathname);
+}
+ async function manualRefreshCoins() {
+try {
+showToast('Syncing...');
+await fetchCoins();
+await loadRankingFromDB();
+await processPendingCoinsIfAny?.();
+showToast('Sync complete.');
+} catch (e) {
+console.warn('manual refresh error:', e);
+showToast('Sync failed. Please try again.');
+}
 }
 document.addEventListener('click', e => {
   if (!e.target.closest('.auth-btn-wrap')) closeUserMenu();
