@@ -282,6 +282,28 @@
     .country:hover { fill: #d8d8d8; }
     .modal-option:hover { border-color: var(--border); background: transparent; }
   }
+
+  /* ── CSS Coin ── */
+  .coin {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ffe066, #f5c400 55%, #c8960a);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25), inset 0 1px 1px rgba(255,255,255,0.5);
+    font-size: 8px; font-weight: 900; color: #a07000;
+    font-family: 'DM Sans', sans-serif; flex-shrink: 0;
+    position: relative; vertical-align: middle; margin-bottom: 1px;
+    border: 1.2px solid #c8960a;
+  }
+  .coin::after {
+    content: '₩';
+    font-size: 7px;
+    color: #9a7000;
+    font-weight: 900;
+  }
+  .coin.sm { width: 13px; height: 13px; }
+  .coin.sm::after { font-size: 6px; }
+  .coin.lg { width: 20px; height: 20px; }
+  .coin.lg::after { font-size: 10px; }
 </style>
 </head>
 <body>
@@ -302,21 +324,21 @@
   <div class="tool-divider"></div>
   <button class="tool-btn" data-type="poop" id="btn-poop">
     <span class="icon">💩</span> Poop
-    <span class="cost-badge" id="badge-poop">2🪙</span>
+    <span class="cost-badge" id="badge-poop">2<span class="coin sm" style="margin-left:2px"></span></span>
   </button>
   <div class="tool-divider"></div>
   <button class="tool-btn" data-type="nuke" id="btn-nuke">
     <span class="icon">☢️</span> Nuke
-    <span class="cost-badge" id="badge-nuke">300🪙</span>
+    <span class="cost-badge" id="badge-nuke">300<span class="coin sm" style="margin-left:2px"></span></span>
   </button>
   <div class="tool-divider"></div>
   <button class="tool-btn" data-type="worldlove" id="btn-worldlove">
     <span class="icon">🌸</span> World Love
-    <span class="cost-badge" id="badge-worldlove">300🪙</span>
+    <span class="cost-badge" id="badge-worldlove">300<span class="coin sm" style="margin-left:2px"></span></span>
   </button>
   <div class="tool-divider"></div>
   <div class="coin-display" onclick="openCoinModal()">
-    🪙 <span id="coin-count">—</span>
+    <span class="coin"></span> <span id="coin-count">—</span>
   </div>
   <div class="tool-divider"></div>
   <div class="auth-btn-wrap">
@@ -325,7 +347,7 @@
     </button>
     <div class="user-menu" id="user-menu">
       <div class="user-menu-email" id="user-email"></div>
-      <div class="user-menu-item" onclick="openCoinModal()">🪙 Buy Coins</div>
+      <div class="user-menu-item" onclick="openCoinModal()"><span class="coin sm" style="margin-right:6px"></span> Buy Coins</div>
      <div class="user-menu-item" onclick="manualRefreshCoins()">🔄 Refresh Coins</div>
       <div class="user-menu-item" onclick="forceLocalLogout()">Sign out</div>
     </div>
@@ -371,9 +393,6 @@
   <div class="modal">
     <div class="modal-title">Coin Recharge</div>
     <div class="modal-rules">
-      🎁 Sign up → <span>5 coins free</span><br>
-      🌅 Daily login → <span>+2 coins</span><br>
-      ─────────────────────<br>
       🚀 Missile — <span>1 coin</span> · +1 hate<br>
       💖 Love &nbsp;&nbsp;&nbsp; — <span>1 coin</span> · +1 love<br>
       💩 Poop &nbsp;&nbsp; — <span>2 coins</span> · +2 hate<br>
@@ -501,7 +520,6 @@ async function refreshAuthUI() {
     label.textContent = '👤';
     document.getElementById('user-email').textContent = currentUser.email;
     await fetchCoins();
-    await claimDailyReward();
   } else {
     label.textContent = 'Sign in';
     coins = 0;
@@ -529,32 +547,6 @@ coins = data.coins ?? coins ?? 0;
 updateCoinDisplay();
 }
 
-// Daily reward: 2 coins per day
-async function claimDailyReward() {
-  if (!currentUser) return;
-  const { data } = await sb.from('profiles')
-    .select('last_daily_claim')
-    .eq('id', currentUser.id)
-    .single();
-  if (!data) return;
-
-  const last = data.last_daily_claim ? new Date(data.last_daily_claim) : null;
-  const now = new Date();
-
-  const todayKST = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-  todayKST.setHours(0, 0, 0, 0);
-  const lastKST = last ? new Date(last.toLocaleString('en-US', { timeZone: 'Asia/Seoul' })) : null;
-
-  if (!lastKST || lastKST < todayKST) {
-    const { error } = await sb.rpc('add_coins', { user_id_input: currentUser.id, amount: 2 });
-    if (!error) {
-      await sb.from('profiles').update({ last_daily_claim: now.toISOString() }).eq('id', currentUser.id);
-      await fetchCoins();
-      showToast('🎁 Daily reward: +2 coins!');
-    }
-  }
-}
-
 // Poll coins every 4 seconds when user is logged in (catches webhook updates)
 setInterval(async () => {
   if (currentUser) await fetchCoins();
@@ -566,7 +558,7 @@ function updateCoinDisplay() {
     const badge = document.getElementById('badge-' + type);
     if (!badge) return;
     const hasFree = usedFree[type] < FREE_ALLOC[type];
-    badge.textContent = hasFree ? 'FREE' : `${COST[type]}🪙`;
+    badge.innerHTML = hasFree ? 'FREE' : `${COST[type]}<span class='coin sm' style='margin-left:3px'></span>`;
     badge.className   = 'cost-badge' + (hasFree ? ' free-badge' : '');
   });
 }
@@ -748,15 +740,15 @@ function openCoinModal() {
     body.innerHTML = `
       <div class="modal-options">
         <div class="modal-option" onclick="buyCoins(10,'$0.99')">
-          <span class="modal-option-coins">🪙 10 coins</span>
+          <span class="modal-option-coins"><span class="coin sm" style="margin-right:5px"></span> 10 coins</span>
           <span class="modal-option-price">$0.99</span>
         </div>
         <div class="modal-option" onclick="buyCoins(50,'$3.99')">
-          <span class="modal-option-coins">🪙 50 coins</span>
+          <span class="modal-option-coins"><span class="coin sm" style="margin-right:5px"></span> 50 coins</span>
           <span class="modal-option-price">$3.99</span>
         </div>
         <div class="modal-option" onclick="buyCoins(100,'$6.99')">
-          <span class="modal-option-coins">🪙 100 coins</span>
+          <span class="modal-option-coins"><span class="coin sm" style="margin-right:5px"></span> 100 coins</span>
           <span class="modal-option-price">$6.99</span>
         </div>
         <div class="modal-option" onclick="buyCoins(300,'$17.99')">
@@ -923,10 +915,10 @@ fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
         if (evt.defaultPrevented) return;
         if (!canFire(selectedType)) {
           if (!currentUser) {
-            showToast('Sign in to play 🔒 Get 5 free coins!');
+            showToast('Sign in to use coins 🔒');
             openAuthModal();
           } else {
-            showToast('🪙 Not enough coins');
+            showToast('Not enough coins');
             openCoinModal();
           }
           return;
