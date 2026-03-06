@@ -371,6 +371,9 @@
   <div class="modal">
     <div class="modal-title">Coin Recharge</div>
     <div class="modal-rules">
+      🎁 Sign up → <span>5 coins free</span><br>
+      🌅 Daily login → <span>+2 coins</span><br>
+      ─────────────────────<br>
       🚀 Missile — <span>1 coin</span> · +1 hate<br>
       💖 Love &nbsp;&nbsp;&nbsp; — <span>1 coin</span> · +1 love<br>
       💩 Poop &nbsp;&nbsp; — <span>2 coins</span> · +2 hate<br>
@@ -498,6 +501,7 @@ async function refreshAuthUI() {
     label.textContent = '👤';
     document.getElementById('user-email').textContent = currentUser.email;
     await fetchCoins();
+    await claimDailyReward();
   } else {
     label.textContent = 'Sign in';
     coins = 0;
@@ -523,6 +527,32 @@ if (!data) return;
 
 coins = data.coins ?? coins ?? 0;
 updateCoinDisplay();
+}
+
+// Daily reward: 2 coins per day
+async function claimDailyReward() {
+  if (!currentUser) return;
+  const { data } = await sb.from('profiles')
+    .select('last_daily_claim')
+    .eq('id', currentUser.id)
+    .single();
+  if (!data) return;
+
+  const last = data.last_daily_claim ? new Date(data.last_daily_claim) : null;
+  const now = new Date();
+
+  const todayKST = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  todayKST.setHours(0, 0, 0, 0);
+  const lastKST = last ? new Date(last.toLocaleString('en-US', { timeZone: 'Asia/Seoul' })) : null;
+
+  if (!lastKST || lastKST < todayKST) {
+    const { error } = await sb.rpc('add_coins', { user_id_input: currentUser.id, amount: 2 });
+    if (!error) {
+      await sb.from('profiles').update({ last_daily_claim: now.toISOString() }).eq('id', currentUser.id);
+      await fetchCoins();
+      showToast('🎁 Daily reward: +2 coins!');
+    }
+  }
 }
 
 // Poll coins every 4 seconds when user is logged in (catches webhook updates)
@@ -893,7 +923,7 @@ fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
         if (evt.defaultPrevented) return;
         if (!canFire(selectedType)) {
           if (!currentUser) {
-            showToast('Sign in to use coins 🔒');
+            showToast('Sign in to play 🔒 Get 5 free coins!');
             openAuthModal();
           } else {
             showToast('🪙 Not enough coins');
